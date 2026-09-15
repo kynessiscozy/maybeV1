@@ -155,6 +155,12 @@ window.MI = window.MI || {};
     outlet = node;
     bindFoldPersistence();
     window.addEventListener('hashchange', render);
+    // 首页已移除：若初始地址是根路径（空或 #/），先真实重定向到 #/lab，
+    // 让地址栏与内容一致，刷新与分享链接都稳定落在自由实验页。
+    var raw = location.hash.replace(/^#/, '');
+    if (!raw || raw === '/') {
+      try { location.replace('#/lab'); return; } catch (e) { /* 兜底走下方 render */ }
+    }
     render();
   }
 
