@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f5f4ef">
+<meta name="description" content="未发生事务所：把不敢开始的念头，展开成三条可能性路线与一个七天计划。本地优先，不上传数据。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 50'%3E%3Crect width='50' height='50' fill='%23f5f4ef'/%3E%3Cg fill='none' stroke='%23262626' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M25 7v36M7 25h36M12 12l26 26M12 38l26-26'/%3E%3Ccircle cx='25' cy='25' r='13'/%3E%3C/g%3E%3Ccircle cx='25' cy='25' r='3.5' fill='%23262626'/%3E%3C/svg%3E">
+<title>未发生事务所 · The Maybe Institute</title>
+<style>/*__CSS__*/</style>
+</head>
+<body>
+<div class="shell" id="shell">
+  <header class="topbar">
+    <button class="brand" data-nav="/" aria-label="回到入口">
+      <svg class="brand-symbol" viewBox="0 0 50 50" fill="none" aria-hidden="true">
+        <path d="M25 4v42M4 25h42M10 10l30 30M10 40l30-30" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="25" cy="25" r="14" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="25" cy="25" r="4" fill="currentColor"/>
+        <circle cx="25" cy="4" r="2.4" fill="currentColor"/>
+        <circle cx="46" cy="25" r="2.4" fill="currentColor"/>
+      </svg>
+      <span>
+        <span class="brand-cn">未发生事务所</span>
+        <span class="brand-en">THE MAYBE INSTITUTE</span>
+      </span>
+    </button>
+
+    <nav class="nav" id="nav" aria-label="主导航">
+      <button data-nav="/lab">实验室</button>
+      <button data-nav="/fear">恐惧模型</button>
+      <button data-nav="/stress">压力画像</button>
+      <button data-nav="/archive">档案记忆<span class="nav-count" id="nav-archive-count">00</span></button>
+    </nav>
+
+    <div class="top-status">
+      <span class="status-text"><i class="live-dot" id="engine-dot"></i><span id="engine-label">本地规则</span></span>
+      <button class="icon-btn" id="help-button" title="使用说明 · 按 ?" aria-label="使用说明">
+        <svg viewBox="0 0 20 20" fill="none">
+          <path d="M7.4 6.4a2.8 2.8 0 0 1 5.3 1.2c0 2-2.7 2-2.7 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          <circle cx="10" cy="15" r=".9" fill="currentColor"/>
+        </svg>
+      </button>
+      <!--
+        设置从主导航剥出来，单独放在右上角。
+        理由是它和其它四项不是一类东西：那四项是「用这个工具做事」的去处，
+        设置是「调整这个工具本身」。混在一排里，用户每次切页都要先把
+        一个不同性质的项跳过去。放右上角是这类入口的通用位置。
+        手机上主导航变成底部 Tab，这一项就留在页头右上角。
+      -->
+      <button class="icon-btn" id="settings-button" data-nav="/settings" title="设置" aria-label="设置">
+        <svg viewBox="0 0 20 20" fill="none">
+          <!-- 齿轮：粗齿 + 明显的中心孔。
+               之前画成细长辐条，缩到 15px 看着像个太阳，
+               认不出是设置。齿要短而宽，轮廓才立得住。 -->
+          <path d="M8.6 1.8h2.8l.42 2.14a6.2 6.2 0 0 1 1.62.94l2.03-.82 1.98 1.98-.82 2.03c.41.48.73 1.03.94 1.62l2.14.42v2.8l-2.14.42a6.2 6.2 0 0 1-.94 1.62l.82 2.03-1.98 1.98-2.03-.82a6.2 6.2 0 0 1-1.62.94l-.42 2.14H8.6l-.42-2.14a6.2 6.2 0 0 1-1.62-.94l-2.03.82-1.98-1.98.82-2.03a6.2 6.2 0 0 1-.94-1.62L.3 11.4V8.6l2.14-.42c.21-.59.53-1.14.94-1.62l-.82-2.03L4.54 2.55l2.03.82a6.2 6.2 0 0 1 1.62-.94z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+          <circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.5"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="view"></main>
+
+  <!--
+    事务所日志：常驻在 shell 层，不能放进 #view。
+    router 每次导航都会替换 #view 的 innerHTML（memory 页有八处会触发），
+    放在里面的记录会在同一次操作里被清掉。
+  -->
+  <div class="ledger-bar" id="ledger-bar" hidden>
+    <button id="ledger-open" aria-expanded="false" aria-controls="ledger-drawer">
+      <span class="ledger-mark" aria-hidden="true">⟳</span>
+      <span id="ledger-latest"></span>
+      <span class="ledger-open-hint" aria-hidden="true">日志</span>
+    </button>
+  </div>
+
+  <footer class="footer">
+    <span class="footer-quote">“允许生活，出现计划之外的分支。”</span>
+    <span class="footer-code">
+      THE MAYBE INSTITUTE &nbsp;© 2026
+      <span class="footer-links">
+        <button data-nav="/about">应用介绍</button>
+        <button id="footer-help">使用说明</button>
+      </span>
+      <br>本地规则推演 · 非未来预测 · v2
+    </span>
+  </footer>
+</div>
+
+<div class="overlay" id="help-overlay" hidden>
+  <section class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title">
+    <button class="icon-btn close-modal" id="close-help" aria-label="关闭说明">×</button>
+    <div class="eyebrow">A USER MANUAL FOR THE NOT-YET</div>
+    <h2 id="help-title">欢迎来到，还没发生的地方。</h2>
+    <div id="help-illu"></div>
+    <div id="help-context" hidden></div>
+    <p>这里不是算命软件，也不替你做决定。它是一个小小的可能性工作台，让模糊的念头有一张可以落脚的纸。</p>
+    <div class="guide-step"><b>01</b><div><strong>种下一个具体的念头</strong>在「实验室」写下你想尝试什么，调整胆量和时间，再展开。Ctrl / ⌘ + Enter 也可以。</div></div>
+    <div class="guide-step"><b>02</b><div><strong>三条路，没有哪条更正确</strong>地图可以拖动，也可以用方向键在九个节点间移动、回车读建议。按 1 / 2 / 3 直接切换路线。</div></div>
+    <div class="guide-step"><b>03</b><div><strong>给它反馈，它会记住</strong>觉得某条路「不太像我」，或某个任务「太难」，都会立刻改变它下次给你的建议。每次调整都会当场给你一张回执，说明改了什么；这些记录在「档案记忆」的账本里可查、可回滚。</div></div>
+    <div class="guide-step"><b>04</b><div><strong>想要更贴身的建议，可以接入模型</strong>在「设置」里填入兼容接口的 API key。留空时一切由本地规则完成，同样可用。</div></div>
+    <div class="modal-note">
+      <strong>诚实说明</strong>
+      默认引擎是本地关键词匹配加策划好的行动模板，不是大模型，不预测未来，不提供成功概率或收入估计。内容仅供灵感参考，不构成专业建议。<br><br>
+      你的念头、反馈与学到的一切只保存在本浏览器，不会自动上传。只有当你主动在「设置」中启用模型接口后，相关文本才会发送到你指定的第三方服务。
+    </div>
+    <button class="modal-action" id="start-exploring">好，允许自己想远一点。</button>
+  </section>
+</div>
+
+<div class="overlay" id="ledger-drawer" hidden>
+  <section class="modal ledger-modal" role="dialog" aria-modal="true" aria-labelledby="ledger-title">
+    <button class="icon-btn close-modal" id="ledger-close" aria-label="收起日志">×</button>
+    <div class="eyebrow">THE INSTITUTE LOG</div>
+    <h2 id="ledger-title">事务所日志</h2>
+    <div id="ledger-note"></div>
+    <p>你在这里做的每一步都会记一条。它只留在这个浏览器里，不会上传，也不会被任何人读到。</p>
+    <div class="ledger-list" id="ledger-list"></div>
+  </section>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<div id="live-region" role="status" aria-live="polite" aria-atomic="true"></div>
+
+<script>/*__JS__*/</script>
+</body>
+</html>
