@@ -9704,11 +9704,11 @@ MI.echo.mount();
 var prevSeen = MI.store.get().meta.lastSeenAt;
 MI.app.__lastSeen = prevSeen;
 MI.store.update(function (st) { st.meta.lastSeenAt = new Date().toISOString(); });
+// 首次进入但没有指定路径时，路由归一化到 /lab（首页已移除）
+if (!location.hash) location.hash = '#/';
 // 首次使用：延迟一拍再弹，避免和首屏入场动画抢注意力
 MI.router.start(document.getElementById('view'));
 syncCounts();
-// 首次进入但没有指定路径时，停在入口页
-if (!location.hash) location.hash = '#/';
 // 用 journey.isVirgin() 而不是 totalIdeas——后者只看书写，不看进度与档案。
 // 标志位写在 return 之外：否则有念头的用户永远不会置位，每次启动都重跑这个定时器。
 if (!MI.store.get().meta.seenGuide) {
