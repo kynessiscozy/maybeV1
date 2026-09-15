@@ -34,8 +34,9 @@ window.MI = window.MI || {};
 
   function parseHash() {
     var raw = location.hash.replace(/^#/, '');
-    if (!raw || raw === '/') return '/';
-    return raw.replace(/\/+$/, '') || '/';
+    // 首页已移除：空路径或根路径直接落到自由实验，不再渲染 landing。
+    if (!raw || raw === '/') return '/lab';
+    return raw.replace(/\/+$/, '') || '/lab';
   }
 
   // 视图转场：不做整页替换，而是复用同一个容器做一次入场动画。
@@ -114,7 +115,7 @@ window.MI = window.MI || {};
   var foldState = {};
 
   function foldKey() {
-    return currentPath || '/';
+    return currentPath || '/lab';
   }
 
   function rememberFolds() {

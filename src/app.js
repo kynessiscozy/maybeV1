@@ -269,7 +269,7 @@ window.MI = window.MI || {};
   function boot() {
     MI.store.init();
 
-    MI.router.define('/', MI.views.landing);
+    // 首页（landing）路由已移除：根路径由 router 归一化到 /lab
     MI.router.define('/lab', MI.views.lab);
     MI.router.define('/route/:index', MI.views.route);
     MI.router.define('/fear', MI.views.fear);

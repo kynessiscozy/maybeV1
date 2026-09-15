@@ -2864,8 +2864,9 @@ return null;
 }
 function parseHash() {
 var raw = location.hash.replace(/^#/, '');
-if (!raw || raw === '/') return '/';
-return raw.replace(/\/+$/, '') || '/';
+// 首页已移除：空路径或根路径直接落到自由实验，不再渲染 landing。
+if (!raw || raw === '/') return '/lab';
+return raw.replace(/\/+$/, '') || '/lab';
 }
 // 视图转场：不做整页替换，而是复用同一个容器做一次入场动画。
 // 这样既保留「页面变了」的感知，又不会因为重建节点丢掉滚动位置与焦点。
@@ -2928,7 +2929,7 @@ var navListeners = [];
 // 用「页面路径 + 折叠块在页内的序号」做键，避免依赖 DOM id。
 var foldState = {};
 function foldKey() {
-return currentPath || '/';
+return currentPath || '/lab';
 }
 function rememberFolds() {
 if (!outlet) return;
@@ -9657,7 +9658,7 @@ if (form) form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Eve
 // ── 启动 ─────────────────────────────────────────────
 function boot() {
 MI.store.init();
-MI.router.define('/', MI.views.landing);
+// 首页（landing）路由已移除：根路径由 router 归一化到 /lab
 MI.router.define('/lab', MI.views.lab);
 MI.router.define('/route/:index', MI.views.route);
 MI.router.define('/fear', MI.views.fear);
