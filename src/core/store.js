@@ -280,13 +280,24 @@ window.MI = window.MI || {};
         kind: String(entry.kind || 'misc'),
         title: String(entry.title).slice(0, 120),
         detail: entry.detail ? String(entry.detail).slice(0, 200) : '',
-        date: new Date().toISOString()
+        date: new Date().toISOString(),
+        unread: true
       };
       state.meta.ledger.unshift(item);
       if (state.meta.ledger.length > MAX_LEDGER) {
         state.meta.ledger = state.meta.ledger.slice(0, MAX_LEDGER);
       }
       return item;
+    },
+
+    // 打开日志抽屉后调用：把全部条目标记为已读，右上角红点随之消失。
+    markLedgerRead: function () {
+      var changed = false;
+      (state.meta.ledger || []).forEach(function (e) {
+        if (e.unread) { e.unread = false; changed = true; }
+      });
+      if (changed) { persist(); emit(); }
+      return state;
     },
 
     clearLedger: function () {

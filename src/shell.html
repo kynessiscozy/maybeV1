@@ -39,14 +39,14 @@
         事务所日志的入口：右上角（原来「使用说明」问号的位置）。
         使用说明让位给日志——日志是每一步操作的回响，比说明书更常回头查看；
         说明书仍有页脚「使用说明」和 ? 快捷键两个入口。
-        角标是账本条数：有过什么，一眼可见。
+        红色小点是未读提示：有新回响时亮起，点开日志后熄灭。
       -->
       <button class="icon-btn" id="ledger-open" title="事务所日志" aria-label="事务所日志" aria-expanded="false" aria-controls="ledger-drawer">
         <svg viewBox="0 0 20 20" fill="none">
           <rect x="4" y="2.8" width="12" height="14.4" rx="2" stroke="currentColor" stroke-width="1.4"/>
           <path d="M7 7h6M7 10h6M7 13h3.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
         </svg>
-        <span class="ledger-badge" id="ledger-badge" hidden></span>
+        <span class="ledger-badge" id="ledger-badge" hidden role="status" aria-label="有新的事务所日志"></span>
       </button>
       <!--
         设置从主导航剥出来，单独放在右上角。

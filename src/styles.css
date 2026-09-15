@@ -1237,21 +1237,17 @@ textarea.attention { animation: mi-nudge 0.42s ease-in-out 2; border-color: var(
    浮现几秒后自己收起。这个应用原本只有三类操作会留下痕迹，
    其余八类做完就没了。日志让「每一步都有回响」在界面上字面成立。 */
 
-/* 右上角入口的角标 */
+/* 右上角入口的未读红点：有未读日志时亮，点开后熄灭 */
 .icon-btn { position: relative; }
 .ledger-badge {
   position: absolute;
-  top: 3px;
-  right: 1px;
-  min-width: 15px;
-  height: 15px;
-  padding: 0 4px;
-  border-radius: 999px;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
   background: var(--orange);
-  color: #fffef8;
-  font: 9.5px/15px var(--mono);
-  letter-spacing: 0;
-  text-align: center;
+  box-shadow: 0 0 0 2px #f5f4ef;
   pointer-events: none;
 }
 

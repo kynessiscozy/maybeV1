@@ -58,13 +58,13 @@ window.MI = window.MI || {};
 
   function count() { return (MI.store.get().meta.ledger || []).length; }
 
-  // 右上角入口的角标：账本里有多少条，一眼可见；空账本不显示
+  // 右上角入口的红点：有未读日志时亮，打开抽屉后熄灭。
+  // 红点只提示「有没有新回响」，不显示条数——想看账本内容点进去即可。
   function syncBadge() {
     var badge = document.getElementById('ledger-badge');
     if (!badge) return;
-    var n = count();
-    badge.textContent = n > 99 ? '99+' : String(n);
-    badge.hidden = n === 0;
+    var hasUnread = (MI.store.get().meta.ledger || []).some(function (e) { return e.unread; });
+    badge.hidden = !hasUnread;
   }
 
   // 日志抽屉的列表。抽屉平时是收起的，但列表随时保持最新——
@@ -195,6 +195,7 @@ window.MI = window.MI || {};
     var close = document.getElementById('ledger-close');
     if (open) {
       open.addEventListener('click', function () {
+        MI.store.markLedgerRead();
         if (MI.app && MI.app.paintLedgerNote) MI.app.paintLedgerNote();
         if (MI.app && MI.app.openOverlay) MI.app.openOverlay('ledger-drawer', 'ledger-close');
         open.setAttribute('aria-expanded', 'true');
@@ -223,6 +224,7 @@ window.MI = window.MI || {};
     if (toastBtn) {
       toastBtn.addEventListener('click', function () {
         hideToast();
+        MI.store.markLedgerRead();
         if (MI.app && MI.app.paintLedgerNote) MI.app.paintLedgerNote();
         if (MI.app && MI.app.openOverlay) MI.app.openOverlay('ledger-drawer', 'ledger-close');
         var btn = document.getElementById('ledger-open');

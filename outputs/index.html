@@ -1154,21 +1154,17 @@ color: var(--green);
 有新回响时，悬浮通知在底部 Tab 栏（手机）/ 页脚（桌面）上方
 浮现几秒后自己收起。这个应用原本只有三类操作会留下痕迹，
 其余八类做完就没了。日志让「每一步都有回响」在界面上字面成立。 */
-/* 右上角入口的角标 */
+/* 右上角入口的未读红点：有未读日志时亮，点开后熄灭 */
 .icon-btn { position: relative; }
 .ledger-badge {
 position: absolute;
-top: 3px;
-right: 1px;
-min-width: 15px;
-height: 15px;
-padding: 0 4px;
-border-radius: 999px;
+top: 6px;
+right: 6px;
+width: 8px;
+height: 8px;
+border-radius: 50%;
 background: var(--orange);
-color: #fffef8;
-font: 9.5px/15px var(--mono);
-letter-spacing: 0;
-text-align: center;
+box-shadow: 0 0 0 2px #f5f4ef;
 pointer-events: none;
 }
 /* 悬浮通知：只在新回响出现的几秒内存在 */
@@ -2011,14 +2007,14 @@ margin-top: 9px;
         事务所日志的入口：右上角（原来「使用说明」问号的位置）。
         使用说明让位给日志——日志是每一步操作的回响，比说明书更常回头查看；
         说明书仍有页脚「使用说明」和 ? 快捷键两个入口。
-        角标是账本条数：有过什么，一眼可见。
+        红色小点是未读提示：有新回响时亮起，点开日志后熄灭。
       -->
       <button class="icon-btn" id="ledger-open" title="事务所日志" aria-label="事务所日志" aria-expanded="false" aria-controls="ledger-drawer">
         <svg viewBox="0 0 20 20" fill="none">
           <rect x="4" y="2.8" width="12" height="14.4" rx="2" stroke="currentColor" stroke-width="1.4"/>
           <path d="M7 7h6M7 10h6M7 13h3.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
         </svg>
-        <span class="ledger-badge" id="ledger-badge" hidden></span>
+        <span class="ledger-badge" id="ledger-badge" hidden role="status" aria-label="有新的事务所日志"></span>
       </button>
       <!--
         设置从主导航剥出来，单独放在右上角。
@@ -2790,13 +2786,23 @@ var item = {
 kind: String(entry.kind || 'misc'),
 title: String(entry.title).slice(0, 120),
 detail: entry.detail ? String(entry.detail).slice(0, 200) : '',
-date: new Date().toISOString()
+date: new Date().toISOString(),
+unread: true
 };
 state.meta.ledger.unshift(item);
 if (state.meta.ledger.length > MAX_LEDGER) {
 state.meta.ledger = state.meta.ledger.slice(0, MAX_LEDGER);
 }
 return item;
+},
+// 打开日志抽屉后调用：把全部条目标记为已读，右上角红点随之消失。
+markLedgerRead: function () {
+var changed = false;
+(state.meta.ledger || []).forEach(function (e) {
+if (e.unread) { e.unread = false; changed = true; }
+});
+if (changed) { persist(); emit(); }
+return state;
 },
 clearLedger: function () {
 state.meta.ledger = [];
@@ -5333,13 +5339,13 @@ return '<div class="ledger-entry">' +
 '</div>';
 }
 function count() { return (MI.store.get().meta.ledger || []).length; }
-// 右上角入口的角标：账本里有多少条，一眼可见；空账本不显示
+// 右上角入口的红点：有未读日志时亮，打开抽屉后熄灭。
+// 红点只提示「有没有新回响」，不显示条数——想看账本内容点进去即可。
 function syncBadge() {
 var badge = document.getElementById('ledger-badge');
 if (!badge) return;
-var n = count();
-badge.textContent = n > 99 ? '99+' : String(n);
-badge.hidden = n === 0;
+var hasUnread = (MI.store.get().meta.ledger || []).some(function (e) { return e.unread; });
+badge.hidden = !hasUnread;
 }
 // 日志抽屉的列表。抽屉平时是收起的，但列表随时保持最新——
 // 这样打开时永远是完整的账本，不需要「打开后再渲染」这一步。
@@ -5454,6 +5460,7 @@ var open = document.getElementById('ledger-open');
 var close = document.getElementById('ledger-close');
 if (open) {
 open.addEventListener('click', function () {
+MI.store.markLedgerRead();
 if (MI.app && MI.app.paintLedgerNote) MI.app.paintLedgerNote();
 if (MI.app && MI.app.openOverlay) MI.app.openOverlay('ledger-drawer', 'ledger-close');
 open.setAttribute('aria-expanded', 'true');
@@ -5481,6 +5488,7 @@ var toast = document.getElementById('ledger-toast');
 if (toastBtn) {
 toastBtn.addEventListener('click', function () {
 hideToast();
+MI.store.markLedgerRead();
 if (MI.app && MI.app.paintLedgerNote) MI.app.paintLedgerNote();
 if (MI.app && MI.app.openOverlay) MI.app.openOverlay('ledger-drawer', 'ledger-close');
 var btn = document.getElementById('ledger-open');
