@@ -427,7 +427,10 @@ window.MI = window.MI || {};
       var btn = root.querySelector('#distill-btn');
       btn.disabled = true;
       btn.textContent = '正在蒸馏…';
-      MI.ai.distill({ corpus: MI.fear.corpus(), archetypes: MI.fear.archetypes(), focus: MI.fear.derive().focus })
+      var dctx = { corpus: MI.fear.corpus(), archetypes: MI.fear.archetypes(), focus: MI.fear.derive().focus };
+      var dSnap = (MI.stress && MI.stress.snapshot) ? MI.stress.snapshot() : null;
+      if (dSnap) dctx.stress = { cpsi: dSnap.cpsi, level: dSnap.level, chan: dSnap.chan };
+      MI.ai.distill(dctx)
         .then(function (result) {
           var lines = result && result.lines ? result.lines.length : 0;
           MI.store.update(function (s) { s.fear.distilled = result; });

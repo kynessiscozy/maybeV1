@@ -71,8 +71,8 @@ window.MI = window.MI || {};
         summary: '八个房间',
         hint: '功能不摊在首页',
         body: '<div class="intro-rooms">' +
-          room('01', '入口', '诗意的门厅。告诉你上次在想什么，然后送你进实验室。') +
-          room('02', '可能性实验室', '种下念头，调胆量和时间，展开三条路。唯一的工作台。') +
+          room('01', '入口', '诗意的门厅。告诉你上次在想什么，然后送你进自由实验。') +
+          room('02', '自由实验', '种下念头，调胆量和时间，展开三条路。唯一的工作台。') +
           room('03', '路线详情', '七天清单、节点说明、像不像我、任务难不难。') +
           room('04', '恐惧模型', '用你的痕迹蒸馏出「拦住你的声音」。越辩越弱。') +
           room('05', '压力画像', '九十道题，把「压力」画成一张可看的图。不诊断，不评判。') +
@@ -86,11 +86,11 @@ window.MI = window.MI || {};
         summary: '怎么用',
         hint: '三步，不必一次走完',
         body: d.points([
-          '<strong>01 进实验室。</strong>写下你想试的事。调整胆量和时间，点展开，或按 Ctrl / ⌘ + Enter。',
+          '<strong>01 进自由实验。</strong>写下你想试的事。调整胆量和时间，点展开，或按 Ctrl / ⌘ + Enter。',
           '<strong>02 选一条路。</strong>点节点看建议，进路线详情看七天安排。没有哪条更正确。',
           '<strong>03 留下一点。</strong>勾选会保存。觉得不像自己或太难，当场反馈。想留底就收藏或导出。'
         ]) +
-          '<button class="btn btn-primary" data-nav="/lab" style="margin-top:16px">进入可能性实验室</button>'
+          '<button class="btn btn-primary" data-nav="/lab" style="margin-top:16px">进入自由实验</button>'
       }) +
 
       d.fold({

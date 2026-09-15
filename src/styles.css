@@ -28,11 +28,12 @@
   --shadow-card: 0 3px 0 #ebeee2aa;
   --radius: 14px;
   --radius-sm: 8px;
-  /* 底部两条常驻条的高度。之前这两个数字（61 / 72）散落在 .ledger-bar、
-     body::after、#view::after、.toast 四处，改一处就要跟着改三处。
-     收成一个变量后，键盘顶起时只要把变量归零，四条依赖同时失效。 */
-  --tabbar-h: 61px;
-  --ledger-h: 72px;
+  /* 底部 Tab 栏的高度与离底间距。之前这个数字（61）散落在 .nav、
+     body::after、.ledger-toast 等处，改一处就要跟着改其余。
+     收成变量后，键盘顶起时只要把变量归零，依赖同时失效。
+     --dock-gap 是悬浮 Dock 离屏幕底边的距离（不含安全区）。 */
+  --tabbar-h: 62px;
+  --dock-gap: 12px;
   /* 品牌英文副标沿用旧的浅灰。它不做正文阅读用，纯装饰，
      所以不该跟着 --muted 一起加深 —— 加深后会抢 .brand 主标的注意力。 */
   --muted-brand: #8b9085;
@@ -83,11 +84,20 @@ textarea:focus-visible, select:focus-visible, [tabindex]:focus-visible {
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 
-/* ── 顶栏 ───────────────────────────────────────────── */
+/* ── 顶栏 ─────────────────────────────────────────────
+   固定在顶部（sticky）：长页面滚起来之后，「去别的页」和「当前在哪」
+   始终够得着。收窄 10%（100→90 / 88→80）给正文让出首屏。
+   背景必须不透明——滚动时正文会从顶栏底下穿过。
+   不用 backdrop-filter 毛玻璃：它会创建包含块，
+   手机上 fixed 的底部 Tab 栏（.nav 是 .topbar 的子元素）会被钉死在顶栏里。 */
 .topbar {
-  height: 100px;
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  height: 90px;
   display: flex; align-items: center; justify-content: space-between;
   border-bottom: 1px solid var(--line); gap: 24px;
+  background: var(--paper);
 }
 .brand { display: flex; align-items: center; gap: 12px; background: none; padding: 0; text-align: left; }
 .brand-symbol { width: 44px; height: 44px; color: var(--orange); flex-shrink: 0; }
@@ -808,7 +818,7 @@ textarea.attention { animation: mi-nudge 0.42s ease-in-out 2; border-color: var(
 
 @media (max-width: 1150px) {
   .shell { padding: 0 28px; }
-  .topbar { height: 88px; }
+  .topbar { height: 80px; }
   .status-text { display: none; }
   .nav button { padding: 10px 14px; }
   .workspace { grid-template-columns: 258px minmax(0, 1fr); gap: 14px; }
@@ -830,7 +840,7 @@ textarea.attention { animation: mi-nudge 0.42s ease-in-out 2; border-color: var(
 
 @media (max-width: 900px) {
   .shell { padding: 0 22px; }
-  .topbar { height: auto; padding: 18px 0; flex-wrap: wrap; row-gap: 14px; }
+  .topbar { height: auto; padding: 15px 0; flex-wrap: wrap; row-gap: 14px; }
   .nav { order: 3; width: 100%; overflow-x: auto; scrollbar-width: none; }
   .nav::-webkit-scrollbar { display: none; }
   .nav button { flex: 0 0 auto; }
@@ -1222,30 +1232,53 @@ textarea.attention { animation: mi-nudge 0.42s ease-in-out 2; border-color: var(
 }
 
 /* ── 事务所日志（回响层）──────────────────────────────
-   常驻在 shell 层，显示最新一条回响。
-   它存在的理由是：这个应用原本只有三类操作会留下痕迹，
+   常驻入口在页头右上角（图标 + 条数角标）；
+   有新回响时，悬浮通知在底部 Tab 栏（手机）/ 页脚（桌面）上方
+   浮现几秒后自己收起。这个应用原本只有三类操作会留下痕迹，
    其余八类做完就没了。日志让「每一步都有回响」在界面上字面成立。 */
-.ledger-bar {
-  max-width: 1536px;
-  margin: 0 auto 0;
-  padding: 0 48px;
+
+/* 右上角入口的角标 */
+.icon-btn { position: relative; }
+.ledger-badge {
+  position: absolute;
+  top: 3px;
+  right: 1px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--orange);
+  color: #fffef8;
+  font: 9.5px/15px var(--mono);
+  letter-spacing: 0;
+  text-align: center;
+  pointer-events: none;
 }
-.ledger-bar > button {
-  width: 100%;
-  max-width: 100%;
+
+/* 悬浮通知：只在新回响出现的几秒内存在 */
+.ledger-toast {
+  position: fixed;
+  right: 28px;
+  bottom: 30px;
+  z-index: 95;
+  max-width: min(440px, calc(100vw - 56px));
+}
+.ledger-toast > button {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
+  width: 100%;
   text-align: left;
-  padding: 10px 14px;
-  background: var(--card-soft);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  transition: border-color 160ms ease, background 160ms ease;
+  padding: 11px 16px;
+  background: var(--paper);
+  border: 1px solid var(--orange-line);
+  border-radius: 999px;
+  box-shadow: 0 10px 28px rgba(52, 64, 51, 0.16);
+  cursor: pointer;
 }
-.ledger-bar > button:hover { border-color: var(--orange-line); background: var(--orange-soft); }
+.ledger-toast > button:hover { background: var(--orange-soft); }
 .ledger-mark { flex: none; color: var(--green); font-size: 11px; }
-#ledger-latest {
+.ledger-toast-body {
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
@@ -1253,27 +1286,20 @@ textarea.attention { animation: mi-nudge 0.42s ease-in-out 2; border-color: var(
   gap: 10px;
   overflow: hidden;
 }
-.ledger-latest-body {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  min-width: 0;
-  overflow: hidden;
-}
-.ledger-latest-body strong {
+.ledger-toast-body strong {
   font-weight: 500;
   font-size: 11.5px;
   color: var(--ink-soft);
   white-space: nowrap;
 }
-.ledger-latest-body span {
+.ledger-toast-body span {
   font-size: 10.5px;
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.ledger-count {
+.ledger-toast-count {
   flex: none;
   font: 9px var(--mono);
   color: var(--muted);
@@ -1281,8 +1307,16 @@ textarea.attention { animation: mi-nudge 0.42s ease-in-out 2; border-color: var(
   border-radius: 3px;
   padding: 2px 5px;
 }
-.ledger-open-hint { flex: none; font-size: 10px; color: var(--muted); letter-spacing: 0.6px; }
-.ledger-bar > button:hover .ledger-open-hint { color: var(--orange); }
+.ledger-toast.is-in > button { animation: ledger-toast-in 340ms cubic-bezier(0.2, 0.9, 0.3, 1.15); }
+@keyframes ledger-toast-in {
+  0% { opacity: 0; transform: translateY(14px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.ledger-toast.is-leaving > button { animation: ledger-toast-out 260ms ease forwards; }
+@keyframes ledger-toast-out {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(10px); }
+}
 
 /* 日志抽屉 */
 .ledger-modal { max-width: 620px; }
@@ -1307,12 +1341,6 @@ textarea.attention { animation: mi-nudge 0.42s ease-in-out 2; border-color: var(
 .ledger-empty { font-size: 11px; color: var(--muted); padding: 16px 2px; margin: 0; }
 #ledger-note { font-size: 11px; color: var(--green); line-height: 1.8; margin-bottom: 10px; }
 
-.ledger-pulse { animation: mi-ledger-pulse 1200ms ease-out; }
-@keyframes mi-ledger-pulse {
-  0% { background: var(--orange-soft); border-color: var(--orange-line); }
-  100% { background: var(--card-soft); border-color: var(--line); }
-}
-
 /* 页内回响：写进视图内的容器，与 receipt 的 ⟳ 视觉区分开 */
 .echo-inline {
   display: flex;
@@ -1334,25 +1362,15 @@ textarea.attention { animation: mi-nudge 0.42s ease-in-out 2; border-color: var(
 .journey-interstitial h1 { font: 400 26px var(--serif); margin: 22px 0 14px; }
 .journey-interstitial p { font-size: 12px; color: var(--muted); line-height: 2; margin: 0 0 22px; }
 
-@media (max-width: 900px) {
-  .ledger-bar { padding: 0 24px; }
-  .ledger-open-hint { display: none; }
-}
-/* 回响条是常驻元素，手机上它也要够好点：
-   整条按钮抬到 44px 高，并把标题压到一行，避免长条目把条撑高。 */
+/* 悬浮通知的字在手机上要更大一档（移动端字号基线 10px 由 mobile-audit.js 把守） */
 @media (max-width: 720px) {
-  .ledger-bar > button { min-height: 44px; padding: 11px 12px; gap: 8px; }
-  .ledger-latest-body strong { font-size: 13px; }
-  .ledger-latest-body span { font-size: 11.5px; line-height: 1.6; }
-  .ledger-count { font-size: 11px; padding: 3px 6px; }
+  .ledger-toast-body strong { font-size: 13px; }
+  .ledger-toast-body span { font-size: 11.5px; line-height: 1.6; }
+  .ledger-toast-count { font-size: 11px; padding: 3px 6px; }
   .ledger-entry-body strong { font-size: 13px; }
   .ledger-entry-body span { font-size: 11.5px; line-height: 1.7; }
   .ledger-entry-time { font-size: 11px; }
   .ledger-empty, #ledger-note { font-size: 12px; }
-}
-@media (max-width: 385px) {
-  .ledger-bar { padding: 0 14px; }
-  .ledger-latest-body span { display: none; }
 }
 
 /* 隔了几天回来时的接续提示 */
@@ -1567,18 +1585,23 @@ textarea.attention { animation: mi-nudge 0.42s ease-in-out 2; border-color: var(
    抽走中间那格会塌出一个洞，得再补 position:relative + 位移把它钉回中间。
    与其为了移动端去动桌面端，不如就地把它 fix 到视口——
    html/body/.shell/.topbar 四层祖先都没有 transform / filter /
-   backdrop-filter / will-change / perspective，包含块仍是视口，这条成立。
+   backdrop-filter / will-change / perspective（顶栏的 position:sticky
+   不在此列，它只创建层叠上下文，不改 fixed 的包含块），包含块仍是视口。
    代价只有一条：<nav> 在文档结构上还属于页头。桌面端一个字都不动更值钱。
 
    高度必须是一个**能被其它规则引用的常量**，因为还有两样东西要跟它对齐：
-   回响条贴在它上沿，toast 浮在它之上。三者都用同一个 56px 基准。 */
+   悬浮通知浮在它上方，正文末尾为它让位。全部走 --tabbar-h / --dock-gap。 */
 @media (max-width: 720px) {
+  /* 全局悬浮胶囊 Dock：总宽比通栏收窄 5%（左右各让 12px + 2.5vw，
+     390px 屏约多让 10px/侧），叠加安全区后仍是纯边距。
+     圆角取 999px 极限值——只要 ≥ 高度一半，两端就是标准半圆。
+     离底距离 = --dock-gap + 安全区。 */
   .nav {
     position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    /* 层级：ledger-bar(80) < nav(90) < overlay(100) < toast(200)。
+    left: calc(12px + 2.5vw + env(safe-area-inset-left, 0px));
+    right: calc(12px + 2.5vw + env(safe-area-inset-right, 0px));
+    bottom: calc(var(--dock-gap) + env(safe-area-inset-bottom, 0px));
+    /* 层级：nav(90) < ledger-toast(95) < overlay(100) < toast(200)。
        必须低于 overlay，否则帮助面板的全屏遮罩盖不住导航栏，
        用户会看到一个浮在遮罩之上的导航条——比导航在哪儿更糟。 */
     z-index: 90;
@@ -1586,24 +1609,27 @@ textarea.attention { animation: mi-nudge 0.42s ease-in-out 2; border-color: var(
     justify-content: stretch;
     gap: 0;
     /* 56px = 按钮 min-height 48 + 上下 padding 6+6 */
-    padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+    padding: 6px 10px;
     margin: 0;
-    border: 0;
-    border-top: 1px solid var(--line);
-    border-radius: 0;
+    border: 1px solid var(--line);
+    border-radius: 999px;
     /* 不透明：正文从底下透上来会毁掉标签的可读性 */
     background: #efeee8;
+    /* 悬浮感：柔和落地阴影，贴纸面美学，不做毛玻璃 */
+    box-shadow: 0 12px 28px rgba(43, 57, 37, 0.16), 0 2px 6px rgba(43, 57, 37, 0.08);
   }
   /* 五个等宽格。原来是横向滚动的胶囊条，改成 Tab 后不再滚动，
      所以要把上一轮加的 scroll-snap 一并撤掉，否则残留的吸附会在
-     点按瞬间把整条轻轻推一下。 */
+     点按瞬间把整条轻轻推一下。
+     激活态的底色块也做成整圆角（999px），外胶囊套内胶囊，
+     端部不会出现和外壳曲线打架的方角。 */
   .nav button {
     flex: 1 1 0;
     min-width: 0;
     min-height: 48px;
     padding: 8px 4px;
     font-size: 11.5px;
-    border-radius: 14px;
+    border-radius: 999px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1615,31 +1641,10 @@ textarea.attention { animation: mi-nudge 0.42s ease-in-out 2; border-color: var(
   .nav-count { margin-left: 4px; font-size: 10px; letter-spacing: 0; }
 }
 
-/* 回响条上移，贴在 Tab 栏正上方。
-   它原本是静态流内元素，固定的 Tab 栏会直接盖住它。
-
-   先说清楚这里**不做什么**：不用 `bottom: calc(56px + …)` 去凑高度。
-   padding 写在 .nav 上，内容盒高度取决于里面按钮的实际高度——两边各算一遍，
-   任何一边改动都会在中间裂出一条缝，缝里透出正文。
-
-   但也不要指望「贴住导航上沿」这件事能有一个不漂移的锚：
-   百分比 bottom 解析的是包含块高度，不是元素自身，`.ledger-bar` 的百分数会变成
-   相对视口，把整条推到屏幕中间。唯一的锚是**导航自己的上沿**。
-
-   所以：让它跨越整块底部区域（下沿就在视口底），再用 1px 的负外边距
-   把自己那一份高度抵掉。视觉上贴住导航，实际只让出 1px —— 而导航的
-   `border-top` 恰好画在那 1px 上，等于回响条正好压在它的上边框之上。 */
-/* 回响条上移，叠在 Tab 栏之上。
-   它原本是静态流内元素，固定的 Tab 栏会直接盖住它。
-
-   这里的 `bottom` 是一个**故意写了两遍的常量**：导航高度 61px。
-   为什么不去「量」导航然后对齐？因为 CSS 没有这种能力，
-   而 JS 测量的方案要在每次字体加载、旋转屏幕、键盘弹起时重算，
-   多出来的那套同步逻辑比这个常量本身更容易坏。
-   两处同源、都带注释、由 `verify.sh` 的断言守着——这就是这里能拿到的最好方案。
-
-   61px 的来源：按钮 min-height 48 + 导航上下 padding 6+6 + 上边框 1。
-   改任何一项都要同步改这里和上面 .nav 的 padding。 */
+/* 悬浮通知：手机上居中悬浮在 Tab 栏正上方。
+   它不再是常驻条，所以没有「咬合导航上沿」的问题——
+   只需要保证出现时压不着 Tab 文字（verify.sh 有断言守着）。
+   bottom 用导航高度变量 + 安全区外推，与 .nav 的实际高度同源。 */
 @media (max-width: 720px) {
   /* 手机上导航去了屏幕底部，页头只剩品牌 + 右上角图标组。
      ≤900px 那条 `.nav { order:3; width:100% }` 本来是为「导航换行占满一行」
@@ -1652,37 +1657,23 @@ textarea.attention { animation: mi-nudge 0.42s ease-in-out 2; border-color: var(
   .brand-en { display: none; }
   .top-status { margin-left: auto; }
 
-  .ledger-bar {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: calc(61px + env(safe-area-inset-bottom, 0px));
-    z-index: 80;
-    max-width: none;
-    margin: 0;
-    padding: 0 8px;
-    background: var(--paper);
+  .ledger-toast {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    bottom: calc(var(--tabbar-h) + var(--dock-gap) + env(safe-area-inset-bottom, 0px) + 12px);
+    max-width: calc(100vw - 24px);
   }
-  .ledger-bar > button {
-    border-bottom: 0;
-    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-  }
-  /* 两条常驻条会永久遮住页面末尾，给正文让出一块等高的空档。
-     这个占位盒跟着两条一起走，所以未来任何一条变高都只需改这一处 */
+  /* 居中的 translateX 写在容器上，入/离场动画只动内部的按钮，
+     两者互不覆盖，不需要为手机单独再画一套 keyframes */
+  /* 固定的 Tab 栏会永久遮住页面末尾，给正文让出一块等高的空档。
+     这个占位盒跟着 Tab 栏走，所以未来任何一条变高都只需改这一处 */
   body::after {
     content: '';
     display: block;
-    height: calc(61px + env(safe-area-inset-bottom, 0px));
+    height: calc(var(--tabbar-h) + var(--dock-gap) + env(safe-area-inset-bottom, 0px));
   }
-  /* 回响条本身也要占位：它是 fixed 的，不占文档流，
-     页面滚到底时最后一段正文会被它压住 */
-  #view::after {
-    content: '';
-    display: block;
-    height: calc(64px + env(safe-area-inset-bottom, 0px));
-  }
-  /* toast 原本 bottom:28px，会正好被两条常驻条夹住看不见。
-     但抬到导航上方后，它又会盖住地图中间的内容。
+  /* toast 原本 bottom:28px，会正好被 Tab 栏压住。
      在手机上改到顶部：既不遮地图，也不被底部条挡住。 */
   .toast { top: 12px; bottom: auto; }
 }
@@ -1697,9 +1688,8 @@ textarea.attention { animation: mi-nudge 0.42s ease-in-out 2; border-color: var(
    ============================================================ */
 @media (hover: none) and (pointer: coarse) {
   /* ── 1. 底部常量收敛到变量 ─────────────────────────── */
-  .ledger-bar { bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); }
-  body::after { height: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); }
-  #view::after { height: calc(var(--ledger-h) + var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); }
+  .ledger-toast { bottom: calc(var(--tabbar-h) + var(--dock-gap) + env(safe-area-inset-bottom, 0px) + 12px); }
+  body::after { height: calc(var(--tabbar-h) + var(--dock-gap) + env(safe-area-inset-bottom, 0px)); }
   /* 触屏上 toast 放底部会被手指和常驻条夹击，放中间又遮地图。
      改到顶部，与系统通知栏的直觉一致，也不会盖住主要内容。 */
   .toast { top: 12px; bottom: auto; }
@@ -1750,35 +1740,39 @@ textarea.attention { animation: mi-nudge 0.42s ease-in-out 2; border-color: var(
    一次性把密度拉回触控档。
    ============================================================ */
 @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
-  :root { --tabbar-h: 53px; --ledger-h: 56px; }
+  :root { --tabbar-h: 54px; --dock-gap: 8px; }
 
-  /* ── 1. 导航落到屏幕底部 ───────────────────────────────
+  /* ── 1. 导航悬浮在屏幕底部 ─────────────────────────────
      横屏时页头只剩 76px 高，导航占掉 49px 后几乎没有正文。
-     挪到底部后正文从 76px 起算，多出一整块。 */
+     挪到底部悬浮后正文从 76px 起算，多出一整块。
+     悬浮样式与竖屏同源：收窄 5%（左右 12px + 2.5vw）、
+     胶囊圆角、投影；离底距离收紧到 8px。 */
   .nav {
-    position: fixed; left: 0; right: 0; bottom: 0;
+    position: fixed;
+    left: calc(12px + 2.5vw + env(safe-area-inset-left, 0px));
+    right: calc(12px + 2.5vw + env(safe-area-inset-right, 0px));
+    bottom: calc(var(--dock-gap) + env(safe-area-inset-bottom, 0px));
+    /* 横屏宽度落在 ≤900px 档里，那条规则给 .nav 的 width:100% 会让
+       left/right 过约束（right 被忽略），Dock 右端溢出屏幕——必须显式归还 auto。 */
+    width: auto;
     z-index: 90;
     display: flex; justify-content: stretch; gap: 0;
-    padding: 4px 8px calc(4px + env(safe-area-inset-bottom, 0px));
-    margin: 0; border: 0; border-top: 1px solid var(--line);
-    border-radius: 0; background: #efeee8;
-    /* 横屏时刘海在左右两侧，底部 Tab 要避开左右安全区 */
-    padding-left: calc(8px + env(safe-area-inset-left, 0px));
-    padding-right: calc(8px + env(safe-area-inset-right, 0px));
+    padding: 4px 10px;
+    margin: 0; border: 1px solid var(--line);
+    border-radius: 999px; background: #efeee8;
+    box-shadow: 0 10px 24px rgba(43, 57, 37, 0.16), 0 2px 6px rgba(43, 57, 37, 0.08);
   }
   .nav button {
     flex: 1 1 0; min-width: 0; min-height: 44px; padding: 6px 4px;
-    font-size: 11px; border-radius: 12px; white-space: nowrap;
+    font-size: 11px; border-radius: 999px; white-space: nowrap;
     overflow: hidden; text-overflow: ellipsis; scroll-snap-align: none;
   }
-  .ledger-bar {
-    position: fixed; left: 0; right: 0;
-    bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
-    z-index: 80; max-width: none; margin: 0;
-    padding: 0 8px; background: var(--paper);
+  .ledger-toast {
+    position: fixed; left: 50%; right: auto;
+    transform: translateX(-50%);
+    bottom: calc(var(--tabbar-h) + var(--dock-gap) + env(safe-area-inset-bottom, 0px) + 10px);
+    z-index: 95; max-width: calc(100vw - 40px);
   }
-  /* 横屏高度紧张：回响条里的说明文字让位给标题本身 */
-  .ledger-bar .ledger-hint { display: none; }
   .toast { top: 12px; bottom: auto; }
 
   /* ── 2. 触控目标统一垫到 44px ──────────────────────────
@@ -1851,12 +1845,10 @@ textarea.attention { animation: mi-nudge 0.42s ease-in-out 2; border-color: var(
    ============================================================ */
 html.kb-open {
   --tabbar-h: 0px;
-  --ledger-h: 0px;
 }
 html.kb-open .nav,
-html.kb-open .ledger-bar { display: none; }
-html.kb-open body::after,
-html.kb-open #view::after { height: 0; }
+html.kb-open .ledger-toast { display: none; }
+html.kb-open body::after { height: 0; }
 /* 键盘顶起时正文可以短一些，避免输入框被推到键盘后面 */
 html.kb-open .chat-panel { min-height: auto; }
 html.kb-open .chat-log { max-height: 30dvh; }
@@ -1876,7 +1868,7 @@ html.kb-open .toast { bottom: 12px; }
   .nav { display: none !important; }
   .topbar, .composer, .map-tools, .map-bottom, .footer, .toast, .overlay,
   .seg, .feedback-card, .btn, .text-btn, .section-hint, .map-banner,
-  .ledger-bar, .ledger-drawer, .echo-inline { display: none !important; }
+  .ledger-toast, .ledger-drawer, .echo-inline { display: none !important; }
   .shell { max-width: none; padding: 0; }
   body { background: #fff; }
   .page { padding: 0; }
@@ -2092,3 +2084,37 @@ html.kb-open .toast { bottom: 12px; }
 
 /* ── 档案记忆：负荷轨迹折线 ────────────────────────── */
 .load-svg { width: 100%; height: auto; display: block; margin: 6px 0 10px; }
+
+/* ── 实验室：处女态三步引导 ──────────────────────────
+   只在空相位出现。中性纸色，不与底色提示的橙色混淆。 */
+.lab-hint {
+  display: flex; gap: 12px; align-items: flex-start; justify-content: space-between;
+  background: rgba(79, 70, 229, .05);
+  border: 1px solid var(--sps-line, #e2e8f0);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.lab-hint[hidden] { display: none; }
+.lab-hint-main { display: flex; flex-direction: column; gap: 4px; }
+.lab-hint-main b { font-size: 13.5px; color: var(--ink); }
+.lab-hint-main span { font-size: 12.5px; line-height: 1.75; color: var(--ink-soft); }
+.lab-hint-x {
+  flex: 0 0 auto;
+  background: transparent; border: 1px solid var(--line); border-radius: 999px;
+  padding: 8px 14px; font-size: 12px; color: var(--ink-soft); cursor: pointer;
+  min-height: 40px;
+}
+.lab-hint-x:hover { border-color: var(--sps, #4f46e5); color: var(--sps, #4f46e5); }
+
+/* ── 设置页：明文 http 接口警告 ────────────────────────
+   密钥与念头会以可被中间设备读取的方式发送。琥珀色，语气是提醒不是恐吓。 */
+.sec-warn {
+  background: var(--danger-soft, rgba(217, 119, 6, .07));
+  border: 1px solid #e0baa0;
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  font-size: 12px; line-height: 1.75; color: #9a5b2d;
+  margin-top: 9px;
+}
+.sec-warn strong { color: #b45309; font-weight: 600; }

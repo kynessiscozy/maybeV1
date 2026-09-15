@@ -12,12 +12,12 @@ window.MI = window.MI || {};
   function blank() {
     return {
       version: 2,
-      session: { idea: '', courage: 65, time: 45, route: 1, done: [[], [], []], savedId: null, actor: null, motive: null },
+      session: { idea: '', courage: 65, time: 45, route: 1, done: [[], [], []], savedId: null, actor: null, motive: null, plan: null },
       saved: [],
       profile: { name: '', cares: [], updatedAt: null },
       observed: { totalIdeas: 0, themes: {}, courageSum: 0, courageCount: 0, timeCount: {}, history: [] },
       feedback: { routes: [], tasks: [] },
-      evolution: { scale: 1, routeBias: [0, 0, 0], log: [], revision: 1 },
+      evolution: { scale: 1, routeBias: [0, 0, 0], log: [], revision: 1, sig: '' },
       fear: {
         turns: [],
         stats: { hit: 0, rebut: 0, avoid: 0 },
@@ -72,6 +72,47 @@ window.MI = window.MI || {};
     });
   }
 
+  // 展开出的完整方案（本地或模型生成）也要进持久层：
+  // 本地结果随时可重算，但模型结果带随机性，同样的输入第二次算不出同样的文字。
+  // 校验失败一律置 null，让 session.ensure() 回退到本地规则，宁可重来也不渲染坏页。
+  function sanitizePlan(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    if (raw.engine !== 'local' && raw.engine !== 'ai') return null;
+    if (!Array.isArray(raw.routes) || raw.routes.length !== 3) return null;
+    var routes = raw.routes.map(function (r) {
+      if (!r || typeof r !== 'object') return null;
+      var nodesOk = Array.isArray(r.nodes) && r.nodes.length === 3;
+      var daysOk = Array.isArray(r.days) && r.days.length === 7;
+      if (!nodesOk || !daysOk) return null;
+      return {
+        nodes: r.nodes.map(function (n) {
+          return {
+            title: String((n && n.title) || '').slice(0, 24),
+            code: String((n && n.code) || '').slice(0, 20),
+            advice: String((n && n.advice) || '').slice(0, 160)
+          };
+        }),
+        description: String(r.description || '').slice(0, 200),
+        days: r.days.map(function (t) { return String(t).slice(0, 70); })
+      };
+    });
+    if (routes.indexOf(null) > -1) return null;
+    return {
+      engine: raw.engine,
+      idea: typeof raw.idea === 'string' ? raw.idea.slice(0, 120) : '',
+      courage: MI.dom.clamp(num(raw.courage, 65), 0, 100),
+      time: [15, 45, 90].indexOf(raw.time) > -1 ? raw.time : 45,
+      motive: typeof raw.motive === 'string' ? raw.motive : null,
+      theme: typeof raw.theme === 'string' ? raw.theme.slice(0, 24) : 'general',
+      themeLabel: typeof raw.themeLabel === 'string' ? raw.themeLabel.slice(0, 16) : '',
+      themeIcon: typeof raw.themeIcon === 'string' ? raw.themeIcon.slice(0, 4) : '',
+      route: MI.dom.clamp(num(raw.route, 1), 0, 2),
+      routeReason: typeof raw.routeReason === 'string' ? raw.routeReason.slice(0, 120) : null,
+      fieldId: typeof raw.fieldId === 'string' ? raw.fieldId.slice(0, 32) : '',
+      routes: routes
+    };
+  }
+
   function sanitize(raw) {
     var base = blank();
     if (!raw || typeof raw !== 'object') return base;
@@ -84,11 +125,15 @@ window.MI = window.MI || {};
     state.session.idea = typeof state.session.idea === 'string' ? state.session.idea.slice(0, 120) : '';
     // 底色微调标记：橙/红区把默认胆量下调一档后置位，展开新念头时清除（见 lab.js）
     state.session.stressAdjusted = !!state.session.stressAdjusted;
+    // 实验室三步引导的关闭记录：关一次就不再出现
+    state.session.labHintDismissed = !!state.session.labHintDismissed;
     // 情境与动机：只接受在预设表里真实存在的 key，避免存档里留下无效值
     var actorKeys = MI.data.ACTORS.map(function (a) { return a.key; });
     var motiveKeys = MI.data.MOTIVES.map(function (m) { return m.key; });
     state.session.actor = actorKeys.indexOf(state.session.actor) > -1 ? state.session.actor : null;
     state.session.motive = motiveKeys.indexOf(state.session.motive) > -1 ? state.session.motive : null;
+    // 当前展开的方案：结构不完整就丢，回退交给 session.ensure()
+    state.session.plan = sanitizePlan(state.session.plan);
     // 存档只做白名单筛选，防止外部导入的数据带上无关字段，
     // 同时保住 actor / motive —— 少了它们，「继续这条路」会算出另一套方案。
     state.saved = Array.isArray(raw.saved) ? raw.saved.slice(-MAX_SAVED).filter(function (s) {
@@ -103,7 +148,8 @@ window.MI = window.MI || {};
         route: MI.dom.clamp(num(s.route, 1), 0, 2),
         actor: MI.data.ACTORS.some(function (a) { return a.key === s.actor; }) ? s.actor : null,
         motive: MI.data.MOTIVES.some(function (m) { return m.key === s.motive; }) ? s.motive : null,
-        done: sanitizeDone(s.done)
+        done: sanitizeDone(s.done),
+        plan: sanitizePlan(s.plan)
       };
     }) : [];
     state.profile = Object.assign(base.profile, raw.profile || {});
@@ -260,7 +306,13 @@ window.MI = window.MI || {};
       return state;
     },
 
-    exportJSON: function () { return JSON.stringify(state, null, 2); },
+    // 导出的备份会离开浏览器（发给别人、换电脑），密钥不该跟着走：
+    // 副本里把 API key 置空，导入后回不到原值，需要的话重新填一次。
+    exportJSON: function () {
+      var copy = JSON.parse(JSON.stringify(state));
+      if (copy.settings && copy.settings.ai) copy.settings.ai.key = '';
+      return JSON.stringify(copy, null, 2);
+    },
 
     importJSON: function (text) {
       var parsed = JSON.parse(text);

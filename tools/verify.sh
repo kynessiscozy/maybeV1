@@ -109,9 +109,9 @@ check "实验室有输入区" "true"
 "$AB" eval "document.querySelectorAll('.node').length"
 check "实验室有分岔图" "9"
 "$AB" eval "document.querySelector('#nav button.active').textContent.trim()"
-check "实验室导航高亮" "实验室"
+check "实验室导航高亮" "自由实验"
 "$AB" eval "document.title"
-check "标题随页面变化" "实验室 · 未发生事务所"
+check "标题随页面变化" "自由实验 · 未发生事务所"
 # 还没有念头时直达路线页：应当看到插页，而不是一片空白
 go /route/1
 "$AB" eval "String(!!document.querySelector('.journey-interstitial'))"
@@ -434,13 +434,23 @@ check "手机端压力画像未勾选即不可开始" "true"
 check "手机端压力画像无横向溢出" "false"
 
 # ── 底部 Tab 栏 ──
-# 手机上主导航固定在屏幕底部。三件事必须同时成立，缺一件用户就会看见破绽：
-# 导航贴住视口底、四个 Tab 等宽且不被挤掉、回响条咬合在导航上沿。
+# 手机上主导航固定悬浮在屏幕底部。这些事必须同时成立，缺一件用户就会看见破绽：
+# Dock 悬浮离底、左右留边、四个 Tab 等宽且不被挤掉、悬浮通知出现时压不着 Tab。
 # 「设置」已经剥到页头右上角，所以这里是 4 项而不是 5 项。
 "$AB" eval "String(getComputedStyle(document.getElementById('nav')).position)"
 check "手机端导航脱离文档流" "fixed"
-"$AB" eval "String(Math.abs(document.getElementById('nav').getBoundingClientRect().bottom-window.innerHeight)<=1)"
-check "手机端导航贴住屏幕底部" "true"
+# 顶栏固定：滚动后品牌、日志入口、设置齿轮仍在手上
+"$AB" eval "String(getComputedStyle(document.querySelector('.topbar')).position)"
+check "手机端顶栏固定" "sticky"
+# Dock 左右留边：悬浮而非通栏，且总宽收窄 5%
+# （390px 视口：12px + 2.5vw ≈ 21.75px/侧，取 18–26 容差）
+"$AB" eval "(function(){var r=document.getElementById('nav').getBoundingClientRect();return String(r.left>=18&&r.left<=26&&window.innerWidth-r.right>=18&&window.innerWidth-r.right<=26);})()"
+check "手机端 Dock 左右留边(收窄5%)" "true"
+"$AB" eval "(function(){var r=document.getElementById('nav').getBoundingClientRect();return String(window.innerHeight-r.bottom>=8&&window.innerHeight-r.bottom<=16);})()"
+check "手机端 Dock 悬浮离底约 12px" "true"
+# 胶囊造型：圆角 ≥ 高度一半时两端呈标准半圆
+"$AB" eval "(function(){var n=document.getElementById('nav');var r=n.getBoundingClientRect();return String(parseFloat(getComputedStyle(n).borderRadius)>=r.height/2-0.5);})()"
+check "手机端 Dock 是胶囊(圆角≥高度一半)" "true"
 "$AB" eval "String(document.querySelectorAll('#nav button').length)"
 check "手机端导航是四项" "4"
 # 等宽：四个格子的宽度两两相差不超过 2px
@@ -459,23 +469,24 @@ check "手机端底部 Tab 不含设置" "true"
 "$AB" eval "String(document.getElementById('settings-button')!==null&&document.getElementById('settings-button').getBoundingClientRect().height>=44)"
 check "手机端设置齿轮在页头且可达" "true"
 
-# 回响条咬合：先造一条回响让条子显示出来。
-# 它默认是 hidden 的，而 hidden 元素的 getBoundingClientRect() 全是 0，
-# 直接量会拿「0 减去导航上沿」得出一个荒唐的数——断言会以看似通过的方式失败。
+# 悬浮通知：造一条回响，通知应当在 Tab 栏上方短暂浮现，且不压住 Tab 文字。
+# 常驻回响条已移除（入口上移页头右上角），底部只在有新回响的几秒内有东西。
 "$AB" deval "MI.echo && MI.echo.push({kind:'day',surface:'both',title:'第 3 天完成了。',detail:'还剩 4 天。'});"
-# 1300ms 而不是 500ms：显示之后回响条会播一次 1200ms 的点亮动画，
-# 动画期间整个盒子带 transform，量到的是中间帧，尺寸会差几个像素。
-"$AB" wait 1300
-# 回响条的下沿应当落在导航的上沿上（导航有 1px 上边框，容差给 2px）。
-# 这两个数是同一个常量 61px 的两端，断言的就是它们没走散。
-"$AB" eval "(function(){var n=document.getElementById('nav').getBoundingClientRect();var b=document.getElementById('ledger-bar').getBoundingClientRect();return String(Math.abs(n.top-b.bottom)<=2);})()"
-check "手机端回响条咬合在导航上沿" "true"
-# 回响条的按钮必须落在导航之上，不能压住 Tab 文字
-"$AB" eval "(function(){var n=document.getElementById('nav').querySelector('button').getBoundingClientRect();var b=document.getElementById('ledger-bar').querySelector('button').getBoundingClientRect();return String(b.bottom<=n.top+0.5);})()"
-check "手机端回响条不遮挡 Tab" "true"
-# 回响条底边贴着导航顶边：两者不许有缝，也不许叠进去
-"$AB" eval "String(document.getElementById('nav').getBoundingClientRect().top-document.getElementById('ledger-bar').getBoundingClientRect().bottom>=-2)"
-check "手机端两条常驻条之间无缝" "true"
+# 500ms 而不是 300ms：入场动画 340ms，动画期间整个盒子带 transform，
+# 量到的是中间帧，位置会差几个像素。
+"$AB" wait 500
+"$AB" eval "String(document.getElementById('ledger-bar')===null)"
+check "手机端无常驻回响条" "true"
+"$AB" eval "String(document.getElementById('ledger-toast')&&!document.getElementById('ledger-toast').hidden)"
+check "手机端新回响唤起悬浮通知" "true"
+# 通知的下沿必须落在导航上沿之上，不许压住 Tab 文字
+"$AB" eval "(function(){var n=document.getElementById('nav').getBoundingClientRect();var t=document.getElementById('ledger-toast').getBoundingClientRect();return String(t.bottom<=n.top+0.5);})()"
+check "手机端悬浮通知不遮挡 Tab" "true"
+# 日志入口在页头右上角（图标 + 角标），而不是底部
+"$AB" eval "(function(){var b=document.getElementById('ledger-open');var r=b.getBoundingClientRect();return String(r.top<80&&r.right>document.documentElement.clientWidth-160);})()"
+check "手机端日志入口在页头右上角" "true"
+"$AB" eval "String(document.getElementById('ledger-badge').textContent.length>0&&document.getElementById('ledger-badge').hidden===false)"
+check "手机端角标显示账本条数" "true"
 
 $AB screenshot
 echo "  · 手机端截图已保存"
@@ -510,10 +521,16 @@ check "无脚本报错" "" err
 
 echo "── P. 回响账本：只有真正改变了什么的事才留下 ──"
 top
-"$AB" eval "String(!!document.querySelector('#ledger-bar'))"
-check "底部有回响条" "true"
-"$AB" eval "String(document.querySelector('#ledger-latest').textContent.trim().length>0)"
-check "回响条显示最近一条" "true"
+"$AB" eval "String(document.getElementById('ledger-bar')===null)"
+check "无常驻回响条" "true"
+"$AB" eval "String(document.getElementById('ledger-open')!==null&&document.getElementById('ledger-open').closest('.top-status')!==null)"
+check "日志入口在页头右上角" "true"
+"$AB" deval "MI.echo.push({kind:'day',surface:'ledger',title:'验证条目。',detail:'P 段专用。'});"
+"$AB" wait 450
+"$AB" eval "String(document.getElementById('ledger-toast')&&!document.getElementById('ledger-toast').hidden&&document.getElementById('ledger-toast').textContent.indexOf('验证条目')>=0)"
+check "新回响唤起悬浮通知" "true"
+"$AB" eval "String(document.getElementById('ledger-badge').hidden===false&&parseInt(document.getElementById('ledger-badge').textContent,10)>0)"
+check "右上角角标显示账本条数" "true"
 "$AB" eval "String((MI.store.get().meta.ledger||[]).length>0)"
 check "账本已写入条目" "true"
 "$AB" eval "String(MI.store.get().meta.ledger.length<=40)"
@@ -530,8 +547,8 @@ check "抽屉可以打开" "true"
 check "抽屉里列出了回响" "true"
 "$AB" eval "String((MI.store.get().meta.ledger||[]).some(function(e){return e.kind==='memory';}))"
 check "记忆操作进了账本" "true"
-"$AB" eval "String(document.querySelector('#ledger-bar').closest('#view')===null)"
-check "回响条不在 #view 里" "true"
+"$AB" eval "String(document.querySelector('#ledger-toast').closest('#view')===null)"
+check "悬浮通知不在 #view 里" "true"
 
 echo "── Q. 叙事阶段：从空到有，每一段说的话都不一样 ──"
 "$AB" eval "String(MI.journey.phase()!=='empty')"
@@ -588,16 +605,20 @@ check "阶段回到 empty" "empty"
 echo "── T. 桌面端没有被移动端改动波及 ──"
 # 底部 Tab 栏是 ≤720px 的规则。桌面端必须**一个字都没动**——
 # 它是用户当前正在用的形态，任何漂移都得当成回归。
-# 这里守三件事：导航还在页头、它没有脱出文档流、回响条没有跟着浮起来。
+# 这里守三件事：导航还在页头、它没有脱出文档流、常驻回响条没有回来。
 "$AB" setviewport 1440 900
 "$AB" open "http://localhost:4321/"
 "$AB" wait 1400
 "$AB" eval "String(document.getElementById('nav').getBoundingClientRect().top<120)"
 check "桌面端导航仍在页头" "true"
+"$AB" eval "getComputedStyle(document.querySelector('.topbar')).position"
+check "桌面端顶栏固定" "sticky"
+"$AB" eval "String(Math.round(document.querySelector('.topbar').getBoundingClientRect().height))"
+check "桌面端顶栏收窄到 90px" "90"
 "$AB" eval "getComputedStyle(document.getElementById('nav')).position"
 check "桌面端导航不脱离文档流" "static"
-"$AB" eval "getComputedStyle(document.querySelector('.ledger-bar')).position"
-check "桌面端回响条不浮动" "static"
+"$AB" eval "String(document.getElementById('ledger-bar')===null)"
+check "桌面端无常驻回响条" "true"
 "$AB" eval "getComputedStyle(document.body).paddingBottom"
 check "桌面端底部无额外留白" "0px"
 "$AB" eval "String(document.documentElement.scrollWidth<=window.innerWidth)"

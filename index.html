@@ -2101,6 +2101,28 @@ html.kb-open .toast { bottom: 12px; }
 
 /* ── 档案记忆：负荷轨迹折线 ────────────────────────── */
 .load-svg { width: 100%; height: auto; display: block; margin: 6px 0 10px; }
+
+/* ── 实验室：处女态三步引导 ──────────────────────────
+   只在空相位出现。中性纸色，不与底色提示的橙色混淆。 */
+.lab-hint {
+  display: flex; gap: 12px; align-items: flex-start; justify-content: space-between;
+  background: rgba(79, 70, 229, .05);
+  border: 1px solid var(--sps-line, #e2e8f0);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.lab-hint[hidden] { display: none; }
+.lab-hint-main { display: flex; flex-direction: column; gap: 4px; }
+.lab-hint-main b { font-size: 13.5px; color: var(--ink); }
+.lab-hint-main span { font-size: 12.5px; line-height: 1.75; color: var(--ink-soft); }
+.lab-hint-x {
+  flex: 0 0 auto;
+  background: transparent; border: 1px solid var(--line); border-radius: 999px;
+  padding: 8px 14px; font-size: 12px; color: var(--ink-soft); cursor: pointer;
+  min-height: 40px;
+}
+.lab-hint-x:hover { border-color: var(--sps, #4f46e5); color: var(--sps, #4f46e5); }
 </style>
 </head>
 <body>
@@ -2666,6 +2688,8 @@ window.MI = window.MI || {};
     state.session.idea = typeof state.session.idea === 'string' ? state.session.idea.slice(0, 120) : '';
     // 底色微调标记：橙/红区把默认胆量下调一档后置位，展开新念头时清除（见 lab.js）
     state.session.stressAdjusted = !!state.session.stressAdjusted;
+    // 实验室三步引导的关闭记录：关一次就不再出现
+    state.session.labHintDismissed = !!state.session.labHintDismissed;
     // 情境与动机：只接受在预设表里真实存在的 key，避免存档里留下无效值
     var actorKeys = MI.data.ACTORS.map(function (a) { return a.key; });
     var motiveKeys = MI.data.MOTIVES.map(function (m) { return m.key; });
@@ -5280,8 +5304,21 @@ window.MI = window.MI || {};
     var prompt = [
       '下面是一个人在「未发生事务所」里留下的真实痕迹。请把它蒸馏成一份「恐惧画像」。',
       '',
-      fearUserPrompt({ corpus: ctx.corpus, archetypes: ctx.archetypes, focus: ctx.focus, history: [] }),
-      '',
+      fearUserPrompt({ corpus: ctx.corpus, archetypes: ctx.archetypes, focus: ctx.focus, history: [] })
+    ];
+    // 压力画像也是他自己的真实数据，蒸馏时可以引用——但只当底色，不当罪名：
+    // 负荷偏高时提醒模型别把一切都归因到性格头上。
+    if (ctx.stress) {
+      var st = ctx.stress;
+      var chNames = { E: '情绪敏感', S: '躯体信使', C: '思维反刍', B: '行为回避', X: '均衡' };
+      var heavy = st.cpsi >= 72; // 黄区以上
+      prompt.push('',
+        '他最近一次压力画像：综合压力指数 ' + st.cpsi + '/100，处于「' + st.level +
+        '」，压力最先从「' + (chNames[st.chan] || st.chan) + '」通道报警。' +
+        (heavy ? '他此刻负荷偏高——蒸馏时把这一底色考虑进去：有些「没开始」可能只是累了，不必都归因于性格。'
+               : '蒸馏时可以把它当作背景，不必刻意强调。'));
+    }
+    prompt.push('',
       '请输出这样的 JSON：',
       JSON.stringify({
         summary: '一句话概括这个人最怕什么，40 字以内',
@@ -5293,13 +5330,14 @@ window.MI = window.MI || {};
       }, null, 2),
       '',
       '要求：三句话都必须引用上面给出的真实数据，不许编造。语气平静，不辱骂，不诊断。'
-    ].join('\n');
+    );
+    var full = prompt.join('\n');
 
     return request({
       model: config().model,
       messages: [
         { role: 'system', content: '你只输出一个 JSON 对象，不要任何解释文字或代码块标记。' },
-        { role: 'user', content: prompt }
+        { role: 'user', content: full }
       ],
       temperature: 0.7
     }).then(function (text) {
@@ -5974,6 +6012,16 @@ window.MI = window.MI || {};
       if (phase === 'returned' && last) {
         // daysSince 理论上有值（returned 要求 lastSeenAt 存在），兜一下是防御性的
         var away = (days === null || days === undefined) ? null : days;
+        // 底色纵向对照：有过 ≥2 次压力画像时，告诉用户这段时间负荷的变化方向。
+        // 只报方向不报诊断——它记得的是坐标，不是结论。
+        var stressDelta = '';
+        var hist = (s.stress && s.stress.history) ? s.stress.history : [];
+        if (hist.length >= 2) {
+          var dCpsi = hist[0].cpsi - hist[1].cpsi;
+          if (dCpsi > 0) stressDelta = '这段时间你的负荷升高了 ' + dCpsi + ' 分，别急着赶进度。';
+          else if (dCpsi < 0) stressDelta = '这段时间你的负荷降了 ' + (-dCpsi) + ' 分，是个好的开始。';
+          else stressDelta = '这段时间你的负荷没有变化。';
+        }
         returnNote =
           '<button class="return-note" data-nav="/lab" type="button">' +
           '<span>WELCOME BACK &nbsp;·&nbsp; ' +
@@ -5981,6 +6029,7 @@ window.MI = window.MI || {};
           '<p>上次你在想：' + d.esc(d.truncate(last.idea, 34)) + '。<br>' +
           '这条路停在原地，但没有过期。' +
           (def.time ? '你习惯每天借出 ' + def.time + ' 分钟，今天也一样。' : '') +
+          (stressDelta ? '<br>' + d.esc(stressDelta) : '') +
           '</p></button>';
       } else if (phase === 'completed' || phase === 'archived') {
         returnNote =
@@ -6285,6 +6334,12 @@ window.MI = window.MI || {};
 
     return '' +
       '<form class="composer" id="composer" novalidate>' +
+      '<div class="lab-hint" id="lab-hint" hidden>' +
+      '<div class="lab-hint-main"><b>第一次来？三步就够了。</b>' +
+      '<span>① 写下一个总在回避的念头 → ② 调好胆量与时间，点「展开我的可能性」（Ctrl / ⌘ + Enter）→ ③ 选一条路，走完第一天。' +
+      '地图可以先不管，它只是另一种看路的方式。</span></div>' +
+      '<button type="button" class="lab-hint-x" id="lab-hint-close" aria-label="关闭引导">知道了</button>' +
+      '</div>' +
       '<div class="label-row"><label for="idea">如果，我想……</label><span class="tiny-code">THE SEED</span></div>' +
       '<div class="idea-wrap">' +
       '<textarea id="idea" maxlength="120" aria-describedby="idea-hint" placeholder="如果不用先证明自己，我最想试试什么？">' + d.esc(s.idea) + '</textarea>' +
@@ -6860,6 +6915,21 @@ window.MI = window.MI || {};
     // 而不是先空着、等他输入了再突然出现。
     paintSeeds(root);
 
+    // ── 处女态轻引导 ──
+    // 实验室是全站概念最密的一页。第一次来的人不该先研究地图，
+    // 只需要知道三步。有过念头之后 phase 不再是 empty，引导自然退场。
+    (function () {
+      var hint = root.querySelector('#lab-hint');
+      if (!hint) return;
+      var show = MI.journey.phase() === 'empty' && !MI.store.get().session.labHintDismissed;
+      hint.hidden = !show;
+      var xc = root.querySelector('#lab-hint-close');
+      if (xc) xc.addEventListener('click', function () {
+        hint.hidden = true;
+        MI.store.update(function (s2) { s2.session.labHintDismissed = true; });
+      });
+    })();
+
     // ── 读底色：压力画像显示橙/红区时，默认胆量下调一档 ──
     // 轻手，不阻拦：只调默认值、说清原因，滑杆随时可以拖回去。
     // 一次会话只调一次（stressAdjusted 标记），展开新念头后重置，
@@ -7227,6 +7297,17 @@ window.MI = window.MI || {};
       '，那是 ' + d.esc(d.relativeDay(s.meta.lastSeenAt)) + '。格子还在，按下去就接着走。</p>';
   }
 
+  // 底色提示：压力画像显示橙/红区时，在七天面板开场说一句实话——
+  // 不改任务规模（那是自进化按反馈管的事），只提醒「不必连续」这一本来就成立的规则。
+  function stressNoteHTML() {
+    var snap = (MI.stress && MI.stress.snapshot) ? MI.stress.snapshot() : null;
+    if (!snap || snap.levelIndex < 4) return '';
+    return '<div class="stress-hint" style="margin:0 0 14px">' +
+      '<span><b>你的压力画像显示最近负荷偏高（' + d.esc(snap.level) + '）。</b>' +
+      '这七天不要求连续，跳过不扣分，格子也不会作废。把步子切小一点，先让第一天发生。</span>' +
+      '</div>';
+  }
+
   function render(ctx) {
     // 没有念头就直接落到这里，原本会静默套用「自由试验」的通用模板，
     // 面包屑还是空的。原地给一句引导，比让人对着通用模板猜要好。
@@ -7283,6 +7364,7 @@ window.MI = window.MI || {};
       '<span id="progress-label">0 / 7</span></div>' +
       '</div>' +
       resumeNote() +
+      stressNoteHTML() +
       '<div class="days" id="days"></div>' +
       '<div class="completion-box" id="completion" hidden>' +
       '<strong>一件未发生的事，已经发生了。</strong>' +
@@ -8012,7 +8094,10 @@ window.MI = window.MI || {};
       var btn = root.querySelector('#distill-btn');
       btn.disabled = true;
       btn.textContent = '正在蒸馏…';
-      MI.ai.distill({ corpus: MI.fear.corpus(), archetypes: MI.fear.archetypes(), focus: MI.fear.derive().focus })
+      var dctx = { corpus: MI.fear.corpus(), archetypes: MI.fear.archetypes(), focus: MI.fear.derive().focus };
+      var dSnap = (MI.stress && MI.stress.snapshot) ? MI.stress.snapshot() : null;
+      if (dSnap) dctx.stress = { cpsi: dSnap.cpsi, level: dSnap.level, chan: dSnap.chan };
+      MI.ai.distill(dctx)
         .then(function (result) {
           var lines = result && result.lines ? result.lines.length : 0;
           MI.store.update(function (s) { s.fear.distilled = result; });

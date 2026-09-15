@@ -60,10 +60,9 @@ const AUDIT = `(function(){
   }
   out.hero = Math.round(window.innerHeight);
 
-  // 底部 Tab 栏的几何。三项必须同时成立：
-  //   navBottom→视口底（导航贴底）、barBottom→navTop（回响条咬合）。
-  // 回响条是 hidden 时 rect 全为 0，那种情况下不判定，只记 null，
-  // 免得拿「0 减导航上沿」得出一个荒唐数却看起来通过了。
+  // 底部 Tab 栏的几何。两项必须同时成立：
+  //   navBottom→视口底（导航贴底）、无常驻回响条（日志入口已上移页头，
+  //   回响只在悬浮通知里短暂出现，不该再有占住底部的常驻条）。
   var nav = document.getElementById('nav');
   var bar = document.getElementById('ledger-bar');
   if (nav) {
@@ -80,19 +79,20 @@ const AUDIT = `(function(){
         return Math.max.apply(null, w) - Math.min.apply(null, w);
       })()),
       btnH: Math.round(nav.querySelector('button').getBoundingClientRect().height),
+      // 悬浮 Dock 的左右留边（含 5% 收窄：12px + 2.5vw）
+      insetL: Math.round(nr.left),
+      // 胶囊造型：圆角 ≥ 高度一半
+      radius: parseFloat(nc.borderRadius),
+      navH: Math.round(nr.height),
       // 标签被 ellipsis 截断的个数
       clipped: (function () {
         var b = nav.querySelectorAll('button'), n = 0;
         for (var i = 0; i < b.length; i++) if (b[i].scrollWidth > b[i].clientWidth + 1) n++;
         return n;
-      })()
+      })(),
+      // 常驻回响条必须不存在（为 null 才对）
+      noBar: !bar
     };
-    if (bar && !bar.hidden) {
-      var br = bar.getBoundingClientRect();
-      out.tabbar.seam = Math.round(nr.top - br.bottom);   // 0 表示严丝合缝
-    } else {
-      out.tabbar.seam = null;
-    }
   }
   return JSON.stringify(out, null, 1);
 })()`;
@@ -168,19 +168,21 @@ const AUDIT = `(function(){
     const badSmall = o.small.filter((s) => !ALLOW_SMALL.test(s.c));
     const overflow = o.docSW > o.vw;
 
-    // 底部 Tab 栏：贴底、四项、等宽、不截断、够高；回响条可见时还要咬合
-    // （设置已剥到页头右上角，不在这四项里）
+    // 底部 Tab 栏：贴底、四项、等宽、不截断、够高；常驻回响条必须已移除
+    // （设置已剥到页头右上角，不在这四项里；日志入口也在页头）
     const tb = o.tabbar || {};
     const tbBad = [];
     if (tb.pos !== 'fixed') tbBad.push('导航未固定（' + tb.pos + '）');
-    if (tb.toBottom !== 0) tbBad.push('导航离底 ' + tb.toBottom + 'px');
+    // Dock 全局悬浮：离底约 12px（8–16 容差），不再通栏贴底
+    if (tb.toBottom < 8 || tb.toBottom > 16) tbBad.push('Dock 离底 ' + tb.toBottom + 'px（应约 12）');
+    // 左右留边 = 12px + 2.5vw（总宽收窄 5%），390 视口约 22px，取 18–26 容差
+    if (tb.insetL < 18 || tb.insetL > 26) tbBad.push('Dock 左侧留边 ' + tb.insetL + 'px（应约 22，收窄 5%）');
+    if (tb.radius < tb.navH / 2 - 0.5) tbBad.push('Dock 非胶囊（圆角 ' + tb.radius + 'px < 高度一半）');
     if (tb.count !== 4) tbBad.push('Tab 数为 ' + tb.count);
     if (tb.spread > 2) tbBad.push('Tab 宽度极差 ' + tb.spread + 'px');
     if (tb.clipped) tbBad.push(tb.clipped + ' 个 Tab 标签被截断');
     if (tb.btnH < 44) tbBad.push('Tab 高仅 ' + tb.btnH + 'px');
-    if (tb.seam !== null && tb.seam !== undefined && Math.abs(tb.seam) > 2) {
-      tbBad.push('回响条与导航之间裂开 ' + tb.seam + 'px');
-    }
+    if (!tb.noBar) tbBad.push('常驻回响条仍存在');
 
     console.log('── ' + (p || '/') + '  doc=' + o.docSW +
       (overflow ? '  !! 横向溢出' : '  ok') +
@@ -192,6 +194,40 @@ const AUDIT = `(function(){
 
     report.push({ p, o, badTaps, badSmall, overflow, tbBad });
   }
+
+  // ── 横屏回归：844×390 / 667×375 ──────────────────────
+  // 横屏宽度落在 ≤900px 档（.nav 领到 width:100%），又同时吃
+  // coarse+landscape 的悬浮 Dock 规则（left/right 定位）。这两条曾打过架：
+  // width:100% 会让 left+right 过约束、right 被忽略，Dock 右端溢出屏幕。
+  // fixed 元素的溢出不进 document.scrollWidth，上面的 docSW 检查看不见它，
+  // 所以这里直接量几何：留边对称且等于 12px+2.5vw（收窄 5%）、胶囊圆角。
+  for (const vp of [{ n: '横屏 844×390', w: 844, h: 390 }, { n: '横屏小 667×375', w: 667, h: 375 }]) {
+    const lctx = await browser.newContext({
+      viewport: { width: vp.w, height: vp.h }, hasTouch: true, isMobile: true, deviceScaleFactor: 2
+    });
+    const lp = await lctx.newPage();
+    await lp.goto('http://localhost:4321/', { waitUntil: 'load' });
+    await lp.waitForTimeout(1700);
+    await lp.evaluate('var o=document.querySelector("#help-overlay"); if(o&&!o.hidden){document.querySelector("#close-help").click();}');
+    await lp.waitForTimeout(300);
+    const m = await lp.evaluate(() => {
+      var n = document.getElementById('nav').getBoundingClientRect();
+      var cs = getComputedStyle(document.getElementById('nav'));
+      return { pos: cs.position, left: n.left, right: innerWidth - n.right,
+               gap: innerHeight - n.bottom, radius: parseFloat(cs.borderRadius), h: n.height };
+    });
+    const expect = 12 + vp.w * 0.025;
+    const lb = [];
+    if (m.pos !== 'fixed') lb.push('导航未固定');
+    if (Math.abs(m.left - expect) > 1.5 || Math.abs(m.right - expect) > 1.5)
+      lb.push('Dock 留边不对称或未收窄（左 ' + m.left.toFixed(1) + ' 右 ' + m.right.toFixed(1) + '，应约 ' + expect.toFixed(1) + '）');
+    if (m.radius < m.h / 2 - 0.5) lb.push('Dock 非胶囊（圆角 ' + m.radius + 'px < 高度一半）');
+    if (m.gap < 4 || m.gap > 12) lb.push('Dock 离底 ' + Math.round(m.gap) + 'px（应约 8）');
+    console.log('── ' + vp.n + '  Dock=' + (lb.length ? '!! ' + lb.join(' / ') : 'ok（收窄 5% 悬浮胶囊）'));
+    if (lb.length) fails++;
+    await lctx.close();
+  }
+
   await browser.close();
 
   console.log('\n截图目录: ' + outDir);
@@ -200,5 +236,5 @@ const AUDIT = `(function(){
     process.exit(1);
   }
   console.log('结果：' + pages.length + ' 个页面全部达标（触控 ≥' + MIN_TAP +
-    'px、字号 ≥10px、无横向溢出、底部 Tab 栏贴底且与回响条咬合）');
+    'px、字号 ≥10px、无横向溢出、Dock 全局悬浮胶囊·总宽收窄 5%、无常驻回响条）');
 })().catch((e) => { console.error(e); process.exit(1); });

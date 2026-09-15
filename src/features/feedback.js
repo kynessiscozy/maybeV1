@@ -24,16 +24,21 @@ window.MI = window.MI || {};
     afterFeedback();
   }
 
-  // 对某个具体任务的难度反馈
-  function rateTask(route, day, level) {
+  // 对某个具体任务的难度反馈。
+  // 与 rateRoute 一样带念头维度：同一念头下的重复点击只留最后一次，
+  // 不同念头对同一天任务的感受互不覆盖——「写公开信的第一天太难」
+  // 不该抹掉「约人聊天的第一天刚好」。
+  function rateTask(route, day, level, idea) {
+    var key = String(idea || '').slice(0, 60);
     MI.store.update(function (s) {
       s.feedback.tasks = s.feedback.tasks.filter(function (f) {
-        return !(f.route === route && f.day === day);
+        return !((f.idea || '') === key && f.route === route && f.day === day);
       });
       s.feedback.tasks.push({
         route: route,
         day: day,
         level: level,
+        idea: key,
         date: new Date().toISOString()
       });
     });
@@ -63,9 +68,11 @@ window.MI = window.MI || {};
     return hit ? hit.verdict : null;
   }
 
-  function taskLevel(route, day) {
+  // 当前念头下某天任务被标过的难度
+  function taskLevel(route, day, idea) {
+    var key = String(idea || '').slice(0, 60);
     var hit = state().feedback.tasks.filter(function (f) {
-      return f.route === route && f.day === day;
+      return (f.idea || '') === key && f.route === route && f.day === day;
     })[0];
     return hit ? hit.level : null;
   }
@@ -111,7 +118,8 @@ window.MI = window.MI || {};
         type: 'task',
         date: f.date,
         text: '第 ' + (f.day + 1) + ' 天任务：' + label,
-        detail: '来自「' + MI.data.ROUTE_NAMES[f.route] + '」'
+        detail: '来自「' + MI.data.ROUTE_NAMES[f.route] + '」' +
+          (f.idea ? ' · 当时的念头：' + f.idea : '')
       };
     }));
     out.sort(function (a, b) { return new Date(b.date) - new Date(a.date); });

@@ -233,6 +233,12 @@ window.MI = window.MI || {};
 
     return '' +
       '<form class="composer" id="composer" novalidate>' +
+      '<div class="lab-hint" id="lab-hint" hidden>' +
+      '<div class="lab-hint-main"><b>第一次来？三步就够了。</b>' +
+      '<span>① 写下一个总在回避的念头 → ② 调好胆量与时间，点「展开我的可能性」（Ctrl / ⌘ + Enter）→ ③ 选一条路，走完第一天。' +
+      '地图可以先不管，它只是另一种看路的方式。</span></div>' +
+      '<button type="button" class="lab-hint-x" id="lab-hint-close" aria-label="关闭引导">知道了</button>' +
+      '</div>' +
       '<div class="label-row"><label for="idea">如果，我想……</label><span class="tiny-code">THE SEED</span></div>' +
       '<div class="idea-wrap">' +
       '<textarea id="idea" maxlength="120" aria-describedby="idea-hint" placeholder="如果不用先证明自己，我最想试试什么？">' + d.esc(s.idea) + '</textarea>' +
@@ -808,6 +814,21 @@ window.MI = window.MI || {};
     // 而不是先空着、等他输入了再突然出现。
     paintSeeds(root);
 
+    // ── 处女态轻引导 ──
+    // 实验室是全站概念最密的一页。第一次来的人不该先研究地图，
+    // 只需要知道三步。有过念头之后 phase 不再是 empty，引导自然退场。
+    (function () {
+      var hint = root.querySelector('#lab-hint');
+      if (!hint) return;
+      var show = MI.journey.phase() === 'empty' && !MI.store.get().session.labHintDismissed;
+      hint.hidden = !show;
+      var xc = root.querySelector('#lab-hint-close');
+      if (xc) xc.addEventListener('click', function () {
+        hint.hidden = true;
+        MI.store.update(function (s2) { s2.session.labHintDismissed = true; });
+      });
+    })();
+
     // ── 读底色：压力画像显示橙/红区时，默认胆量下调一档 ──
     // 轻手，不阻拦：只调默认值、说清原因，滑杆随时可以拖回去。
     // 一次会话只调一次（stressAdjusted 标记），展开新念头后重置，
@@ -834,7 +855,7 @@ window.MI = window.MI || {};
       }
       MI.echo.push({
         kind: 'stress', surface: 'ledger',
-        title: '实验室读了你的压力底色。',
+        title: '自由实验读了你的压力底色。',
         detail: '负荷偏高（' + snap.level + '），胆量默认值从 ' + cur + '% 下调到 ' + lower + '%。'
       });
     })();
@@ -1133,7 +1154,7 @@ window.MI = window.MI || {};
   }
 
   MI.views.lab = {
-    title: '实验室',
+    title: '自由实验',
     render: render,
     mount: mount,
     unmount: function () {

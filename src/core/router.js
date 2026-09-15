@@ -106,7 +106,6 @@ window.MI = window.MI || {};
   }
 
   var navListeners = [];
-  var samePageListeners = [];
 
   // ── 折叠状态记忆 ──────────────────────────────────────
   // 这些页面里的操作（保存、删除、反馈）都会触发整页重渲染，

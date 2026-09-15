@@ -21,13 +21,27 @@ window.MI = window.MI || {};
 
   function state() { return MI.store.get(); }
 
+  // 规则的输入指纹：三条规则各自读到的原始序列。
+  // 输入没变（比如同一条任务反馈被重复点击覆盖，序列不变）就跳过重算，
+  // 不做无谓的落盘与广播——recompute 本身很便宜，省的是存储写入。
+  function signature(s) {
+    return s.feedback.tasks.map(function (t) { return t.level; }).join('') + '#' +
+      s.feedback.routes.map(function (f) { return f.route + f.verdict; }).join('') + '#' +
+      s.fear.turns.filter(function (t) { return t.verdict; })
+        .map(function (t) { return t.verdict; }).join('');
+  }
+
   function baseRoute(courage) {
     return courage < 34 ? 0 : courage < 75 ? 1 : 2;
   }
 
   // 依据反馈重算规则参数。只在数值真的变化时记录日志。
   function recompute() {
+    var before0 = state();
+    var sig = signature(before0);
+    if (sig === before0.evolution.sig) return;
     MI.store.update(function (s) {
+      s.evolution.sig = sig;
       var before = {
         scale: s.evolution.scale,
         bias: s.evolution.routeBias.join(',')
@@ -138,6 +152,7 @@ window.MI = window.MI || {};
       s.evolution.routeBias = [0, 0, 0];
       s.evolution.log = [];
       s.evolution.revision = 1;
+      s.evolution.sig = '';
     });
   }
 

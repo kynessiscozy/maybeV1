@@ -277,8 +277,21 @@ window.MI = window.MI || {};
     var prompt = [
       '下面是一个人在「未发生事务所」里留下的真实痕迹。请把它蒸馏成一份「恐惧画像」。',
       '',
-      fearUserPrompt({ corpus: ctx.corpus, archetypes: ctx.archetypes, focus: ctx.focus, history: [] }),
-      '',
+      fearUserPrompt({ corpus: ctx.corpus, archetypes: ctx.archetypes, focus: ctx.focus, history: [] })
+    ];
+    // 压力画像也是他自己的真实数据，蒸馏时可以引用——但只当底色，不当罪名：
+    // 负荷偏高时提醒模型别把一切都归因到性格头上。
+    if (ctx.stress) {
+      var st = ctx.stress;
+      var chNames = { E: '情绪敏感', S: '躯体信使', C: '思维反刍', B: '行为回避', X: '均衡' };
+      var heavy = st.cpsi >= 72; // 黄区以上
+      prompt.push('',
+        '他最近一次压力画像：综合压力指数 ' + st.cpsi + '/100，处于「' + st.level +
+        '」，压力最先从「' + (chNames[st.chan] || st.chan) + '」通道报警。' +
+        (heavy ? '他此刻负荷偏高——蒸馏时把这一底色考虑进去：有些「没开始」可能只是累了，不必都归因于性格。'
+               : '蒸馏时可以把它当作背景，不必刻意强调。'));
+    }
+    prompt.push('',
       '请输出这样的 JSON：',
       JSON.stringify({
         summary: '一句话概括这个人最怕什么，40 字以内',
@@ -290,13 +303,14 @@ window.MI = window.MI || {};
       }, null, 2),
       '',
       '要求：三句话都必须引用上面给出的真实数据，不许编造。语气平静，不辱骂，不诊断。'
-    ].join('\n');
+    );
+    var full = prompt.join('\n');
 
     return request({
       model: config().model,
       messages: [
         { role: 'system', content: '你只输出一个 JSON 对象，不要任何解释文字或代码块标记。' },
-        { role: 'user', content: prompt }
+        { role: 'user', content: full }
       ],
       temperature: 0.7
     }).then(function (text) {

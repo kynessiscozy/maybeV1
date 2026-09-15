@@ -27,7 +27,7 @@
     </button>
 
     <nav class="nav" id="nav" aria-label="主导航">
-      <button data-nav="/lab">实验室</button>
+      <button data-nav="/lab">自由实验</button>
       <button data-nav="/fear">恐惧模型</button>
       <button data-nav="/stress">压力画像</button>
       <button data-nav="/archive">档案记忆<span class="nav-count" id="nav-archive-count">00</span></button>
@@ -35,11 +35,18 @@
 
     <div class="top-status">
       <span class="status-text"><i class="live-dot" id="engine-dot"></i><span id="engine-label">本地规则</span></span>
-      <button class="icon-btn" id="help-button" title="使用说明 · 按 ?" aria-label="使用说明">
+      <!--
+        事务所日志的入口：右上角（原来「使用说明」问号的位置）。
+        使用说明让位给日志——日志是每一步操作的回响，比说明书更常回头查看；
+        说明书仍有页脚「使用说明」和 ? 快捷键两个入口。
+        角标是账本条数：有过什么，一眼可见。
+      -->
+      <button class="icon-btn" id="ledger-open" title="事务所日志" aria-label="事务所日志" aria-expanded="false" aria-controls="ledger-drawer">
         <svg viewBox="0 0 20 20" fill="none">
-          <path d="M7.4 6.4a2.8 2.8 0 0 1 5.3 1.2c0 2-2.7 2-2.7 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-          <circle cx="10" cy="15" r=".9" fill="currentColor"/>
+          <rect x="4" y="2.8" width="12" height="14.4" rx="2" stroke="currentColor" stroke-width="1.4"/>
+          <path d="M7 7h6M7 10h6M7 13h3.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
         </svg>
+        <span class="ledger-badge" id="ledger-badge" hidden></span>
       </button>
       <!--
         设置从主导航剥出来，单独放在右上角。
@@ -63,15 +70,19 @@
   <main id="view"></main>
 
   <!--
-    事务所日志：常驻在 shell 层，不能放进 #view。
+    事务所日志的悬浮通知：常驻在 shell 层，不能放进 #view。
     router 每次导航都会替换 #view 的 innerHTML（memory 页有八处会触发），
     放在里面的记录会在同一次操作里被清掉。
+
+    它不再是常驻的回响条——平时看不见，只在 push 出新日志的几秒内
+    浮现在底部 Tab 栏（手机）/ 页脚（桌面）上方，随后自己收起。
+    日志的常驻入口在页头右上角。
   -->
-  <div class="ledger-bar" id="ledger-bar" hidden>
-    <button id="ledger-open" aria-expanded="false" aria-controls="ledger-drawer">
+  <div class="ledger-toast" id="ledger-toast" hidden role="status">
+    <button id="ledger-toast-open" aria-controls="ledger-drawer">
       <span class="ledger-mark" aria-hidden="true">⟳</span>
-      <span id="ledger-latest"></span>
-      <span class="ledger-open-hint" aria-hidden="true">日志</span>
+      <span class="ledger-toast-body" id="ledger-toast-body"></span>
+      <span class="ledger-toast-count" id="ledger-toast-count" aria-hidden="true"></span>
     </button>
   </div>
 
@@ -96,7 +107,7 @@
     <div id="help-illu"></div>
     <div id="help-context" hidden></div>
     <p>这里不是算命软件，也不替你做决定。它是一个小小的可能性工作台，让模糊的念头有一张可以落脚的纸。</p>
-    <div class="guide-step"><b>01</b><div><strong>种下一个具体的念头</strong>在「实验室」写下你想尝试什么，调整胆量和时间，再展开。Ctrl / ⌘ + Enter 也可以。</div></div>
+    <div class="guide-step"><b>01</b><div><strong>种下一个具体的念头</strong>在「自由实验」写下你想尝试什么，调整胆量和时间，再展开。Ctrl / ⌘ + Enter 也可以。</div></div>
     <div class="guide-step"><b>02</b><div><strong>三条路，没有哪条更正确</strong>地图可以拖动，也可以用方向键在九个节点间移动、回车读建议。按 1 / 2 / 3 直接切换路线。</div></div>
     <div class="guide-step"><b>03</b><div><strong>给它反馈，它会记住</strong>觉得某条路「不太像我」，或某个任务「太难」，都会立刻改变它下次给你的建议。每次调整都会当场给你一张回执，说明改了什么；这些记录在「档案记忆」的账本里可查、可回滚。</div></div>
     <div class="guide-step"><b>04</b><div><strong>想要更贴身的建议，可以接入模型</strong>在「设置」里填入兼容接口的 API key。留空时一切由本地规则完成，同样可用。</div></div>

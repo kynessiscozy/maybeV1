@@ -42,6 +42,18 @@ const MODULES = [
 
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 
+// 产物压缩：去掉行首缩进与空行。
+// 这是刻意保守的压缩——只动字符串字面量之外的空白：
+// 源码是 ES5，字符串不会跨行（无模板字符串、无行尾续行），
+// 行首缩进永远在引号之外，因此按行处理是安全的。
+// 更激进的混淆交给部署方，这里保证产物仍然可读、可 diff。
+function squeeze(code) {
+  return code.split('\n')
+    .filter((line) => line.trim().length > 0)
+    .map((line) => line.replace(/^[ \t]+/, ''))
+    .join('\n');
+}
+
 function main() {
   const missing = MODULES.filter((m) => !fs.existsSync(path.join(ROOT, m)));
   if (missing.length) {
@@ -49,8 +61,8 @@ function main() {
     process.exit(1);
   }
 
-  const css = read('src/styles.css');
-  const js = MODULES.map((m) => '/* ===== ' + m + ' ===== */\n' + read(m)).join('\n\n');
+  const css = squeeze(read('src/styles.css'));
+  const js = MODULES.map((m) => '/* ===== ' + m + ' ===== */\n' + squeeze(read(m))).join('\n');
   const shell = read('src/shell.html');
 
   // 内联脚本里出现 </script> 会提前结束脚本块

@@ -5,6 +5,24 @@ window.MI = window.MI || {};
 
   var d = MI.dom;
 
+  // 明文 http 接口的安全提示。本地回环地址除外——那不出网，拦截与窃听都不成立。
+  function insecureWarn(endpoint) {
+    var url = String(endpoint || '').trim().toLowerCase();
+    if (!url || /^https:\/\//.test(url)) return false;
+    if (/^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?([\/?#]|$)/.test(url)) return false;
+    return /^http:\/\//.test(url);
+  }
+
+  function warnHTML(endpoint) {
+    if (!insecureWarn(endpoint)) return '';
+    return '<div class="sec-warn" role="note" aria-live="polite">' +
+      '<strong>这个接口地址走的是明文 http。</strong>' +
+      '密钥和你的念头会以可被网络中间设备读取的方式发送，' +
+      '本页面如果以后部署在 https 下，浏览器也会直接拦截这种请求。' +
+      '只有 localhost / 127.0.0.1 这类本机地址适合 http，其余请一律使用 https。' +
+      '</div>';
+  }
+
   function render() {
     var ai = MI.ai.config();
     var lastTest = ai.lastTest;
@@ -43,7 +61,8 @@ window.MI = window.MI || {};
 
       '<div class="form-row" style="margin-top:18px">' +
       '<label for="ai-endpoint">接口地址</label>' +
-      '<input type="text" id="ai-endpoint" placeholder="https://api.openai.com/v1" value="' + d.esc(ai.endpoint) + '">' +
+      '<input type="text" id="ai-endpoint" placeholder="https://api.openai.com/v1" value="' + d.esc(ai.endpoint) + '" autocomplete="off" spellcheck="false">' +
+      '<div id="sec-warn-slot">' + warnHTML(ai.endpoint) + '</div>' +
       '<p class="hint">兼容 OpenAI 的 chat completions 协议。可以只填到 <code>/v1</code>，会自动补全路径。</p>' +
       '</div>' +
 
@@ -106,8 +125,8 @@ window.MI = window.MI || {};
           '<div class="fold-section">' +
           '<h3>键盘</h3>' +
           d.points([
-            '<code>Ctrl / ⌘ + Enter</code> 在实验室里直接展开',
-            '<code>1 / 2 / 3</code> 在实验室里切换路线',
+            '<code>Ctrl / ⌘ + Enter</code> 在自由实验里直接展开',
+            '<code>1 / 2 / 3</code> 在自由实验里切换路线',
             '<code>方向键</code> 在地图上移动，<code>Enter</code> 读建议',
             '<code>?</code> 打开使用说明，<code>Esc</code> 关闭'
           ]) +
@@ -116,6 +135,8 @@ window.MI = window.MI || {};
           '<h3>数据与隐私</h3>' +
           d.points([
             '念头、档案、记忆与反馈都存在本浏览器的 localStorage。',
+            '导出的数据备份不含模型密钥——备份丢了密钥也不会跟着泄露，导入后重新填一次即可。',
+            '接口地址请使用 https；明文 http 只有本机地址（localhost）是安全的。',
             '更换浏览器或清理站点数据会导致内容丢失，重要内容请导出。',
             '无痕模式下无法保证持久保存。'
           ]) +
@@ -131,6 +152,11 @@ window.MI = window.MI || {};
     var endpoint = root.querySelector('#ai-endpoint');
     var model = root.querySelector('#ai-model');
     var key = root.querySelector('#ai-key');
+
+    // 地址改成明文 http 时立即提醒，不等保存
+    endpoint.addEventListener('input', function () {
+      root.querySelector('#sec-warn-slot').innerHTML = warnHTML(endpoint.value);
+    });
 
     function collect() {
       return {

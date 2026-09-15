@@ -34,6 +34,16 @@ window.MI = window.MI || {};
       if (phase === 'returned' && last) {
         // daysSince 理论上有值（returned 要求 lastSeenAt 存在），兜一下是防御性的
         var away = (days === null || days === undefined) ? null : days;
+        // 底色纵向对照：有过 ≥2 次压力画像时，告诉用户这段时间负荷的变化方向。
+        // 只报方向不报诊断——它记得的是坐标，不是结论。
+        var stressDelta = '';
+        var hist = (s.stress && s.stress.history) ? s.stress.history : [];
+        if (hist.length >= 2) {
+          var dCpsi = hist[0].cpsi - hist[1].cpsi;
+          if (dCpsi > 0) stressDelta = '这段时间你的负荷升高了 ' + dCpsi + ' 分，别急着赶进度。';
+          else if (dCpsi < 0) stressDelta = '这段时间你的负荷降了 ' + (-dCpsi) + ' 分，是个好的开始。';
+          else stressDelta = '这段时间你的负荷没有变化。';
+        }
         returnNote =
           '<button class="return-note" data-nav="/lab" type="button">' +
           '<span>WELCOME BACK &nbsp;·&nbsp; ' +
@@ -41,6 +51,7 @@ window.MI = window.MI || {};
           '<p>上次你在想：' + d.esc(d.truncate(last.idea, 34)) + '。<br>' +
           '这条路停在原地，但没有过期。' +
           (def.time ? '你习惯每天借出 ' + def.time + ' 分钟，今天也一样。' : '') +
+          (stressDelta ? '<br>' + d.esc(stressDelta) : '') +
           '</p></button>';
       } else if (phase === 'completed' || phase === 'archived') {
         returnNote =
@@ -69,7 +80,7 @@ window.MI = window.MI || {};
         '不必改变一生。先借给自己七天。' +
         '</p>' +
         '<div class="landing-actions">' +
-        '<button class="btn btn-primary" data-nav="/lab">进入可能性实验室' +
+        '<button class="btn btn-primary" data-nav="/lab">进入自由实验' +
         '<svg viewBox="0 0 20 20" fill="none"><path d="M3 10h13m-5-5 5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg>' +
         '</button>' +
         '<button class="text-btn" data-nav="/archive">它记得我什么？</button>' +
@@ -88,7 +99,7 @@ window.MI = window.MI || {};
         '<div class="gallery-row">' +
         '<button class="gallery-card" data-nav="/lab" type="button">' +
         '<span class="gallery-no">01</span>' +
-        '<strong>实验室</strong><span class="gallery-sub">种下一个念头，它会展开成三条路</span>' +
+        '<strong>自由实验</strong><span class="gallery-sub">种下一个念头，它会展开成三条路</span>' +
         '<span class="gallery-go" aria-hidden="true">→</span></button>' +
         '<button class="gallery-card" data-nav="/fear" type="button">' +
         '<span class="gallery-no">02</span>' +

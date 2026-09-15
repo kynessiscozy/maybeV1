@@ -138,7 +138,7 @@ window.MI = window.MI || {};
           ? '<button class="fact-remove" data-forget-care="' + f.index + '" aria-label="忘记这条">×</button>'
           : '<span style="width:14px"></span>') +
         '</div>';
-    }).join('') : '<p class="page-desc">还没有记住任何事。去实验室写下一个念头，或者在这里先告诉它你是谁。</p>';
+    }).join('') : '<p class="page-desc">还没有记住任何事。去自由实验写下一个念头，或者在这里先告诉它你是谁。</p>';
 
     var bars = rank.length ? rank.map(function (t) {
       return '<div class="bar-row">' +
@@ -365,8 +365,8 @@ window.MI = window.MI || {};
       a.click();
       a.remove();
       setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
-      d.toast('已开始导出数据备份。');
-      note('导出了一份备份。', '这是一份可以带走的副本。文件丢了不影响这里，这里丢了它有。');
+      d.toast('已开始导出数据备份。文件不含模型密钥。');
+      note('导出了一份备份。', '这是一份可以带走的副本，模型密钥没有跟着走。文件丢了不影响这里，这里丢了它有。');
     });
 
     var fileInput = root.querySelector('#import-file');
@@ -460,7 +460,10 @@ window.MI = window.MI || {};
             actor: target.actor || null,
             motive: target.motive || null,
             done: target.done.map(function (list) { return list.slice(); }),
-            savedId: target.id
+            savedId: target.id,
+            // 档案里存着当时展开出的方案（模型结果带随机性，必须原样还原；
+            // 旧档案没有这一项，rebuild 会回退到本地规则重算）
+            plan: target.plan || null
           };
         });
         MI.session.rebuild();

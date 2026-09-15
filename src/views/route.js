@@ -23,6 +23,17 @@ window.MI = window.MI || {};
       '，那是 ' + d.esc(d.relativeDay(s.meta.lastSeenAt)) + '。格子还在，按下去就接着走。</p>';
   }
 
+  // 底色提示：压力画像显示橙/红区时，在七天面板开场说一句实话——
+  // 不改任务规模（那是自进化按反馈管的事），只提醒「不必连续」这一本来就成立的规则。
+  function stressNoteHTML() {
+    var snap = (MI.stress && MI.stress.snapshot) ? MI.stress.snapshot() : null;
+    if (!snap || snap.levelIndex < 4) return '';
+    return '<div class="stress-hint" style="margin:0 0 14px">' +
+      '<span><b>你的压力画像显示最近负荷偏高（' + d.esc(snap.level) + '）。</b>' +
+      '这七天不要求连续，跳过不扣分，格子也不会作废。把步子切小一点，先让第一天发生。</span>' +
+      '</div>';
+  }
+
   function render(ctx) {
     // 没有念头就直接落到这里，原本会静默套用「自由试验」的通用模板，
     // 面包屑还是空的。原地给一句引导，比让人对着通用模板猜要好。
@@ -55,7 +66,7 @@ window.MI = window.MI || {};
     return '' +
       '<section class="page">' +
       '<div class="crumb">' +
-      '<button data-nav="/lab">实验室</button><span>/</span>' +
+      '<button data-nav="/lab">自由实验</button><span>/</span>' +
       '<span>' + d.esc(d.truncate(plan.idea, 26)) + '</span>' +
       '</div>' +
       '<div class="route-head">' +
@@ -79,6 +90,7 @@ window.MI = window.MI || {};
       '<span id="progress-label">0 / 7</span></div>' +
       '</div>' +
       resumeNote() +
+      stressNoteHTML() +
       '<div class="days" id="days"></div>' +
       '<div class="completion-box" id="completion" hidden>' +
       '<strong>一件未发生的事，已经发生了。</strong>' +
@@ -130,7 +142,7 @@ window.MI = window.MI || {};
 
     host.innerHTML = plan.routes[route].days.map(function (text, i) {
       var isDone = done.indexOf(i) > -1;
-      var level = MI.feedback.taskLevel(route, i);
+      var level = MI.feedback.taskLevel(route, i, s.session.idea);
       return '<div class="day-row' + (isDone ? ' completed' : '') + '" data-row="' + i + '">' +
         '<button class="day-main" data-day="' + i + '" aria-pressed="' + isDone + '">' +
         '<span class="check" aria-hidden="true">' + (isDone ? '✓' : '') + '</span>' +
@@ -206,7 +218,7 @@ window.MI = window.MI || {};
       MI.store.update(function (st) {
         st.saved = st.saved.map(function (x) {
           return x.id === st.session.savedId
-            ? { id: x.id, date: x.date, idea: st.session.idea, courage: st.session.courage, time: st.session.time, route: st.session.route, actor: st.session.actor || null, motive: st.session.motive || null, done: st.session.done }
+            ? { id: x.id, date: x.date, idea: st.session.idea, courage: st.session.courage, time: st.session.time, route: st.session.route, actor: st.session.actor || null, motive: st.session.motive || null, done: st.session.done, plan: x.plan || st.session.plan }
             : x;
         });
       });
@@ -242,7 +254,10 @@ window.MI = window.MI || {};
         // 会退回关键词猜主题，可能算出和当初不一样的三条路。
         actor: st.session.actor || null,
         motive: st.session.motive || null,
-        done: st.session.done
+        done: st.session.done,
+        // 连同展开出的方案一起收进档案：本地结果可以重算，
+        // 模型结果带随机性，不存下来，重新打开时就不是当时那份了。
+        plan: st.session.plan
       });
     });
     paintSave(root);
@@ -280,7 +295,7 @@ window.MI = window.MI || {};
       var levelBtn = e.target.closest('[data-level]');
       if (levelBtn) {
         var dayIndex = Number(levelBtn.dataset.dayIndex);
-        MI.feedback.rateTask(MI.store.get().session.route, dayIndex, levelBtn.dataset.level);
+        MI.feedback.rateTask(MI.store.get().session.route, dayIndex, levelBtn.dataset.level, MI.store.get().session.idea);
         paintAll(root);
         // 反馈回执：把它做了什么摊开给用户看，同时记进事务所日志
         MI.echo.engineReceipt(root, '#receipt-slot',
@@ -300,7 +315,7 @@ window.MI = window.MI || {};
         // 已收藏的档案同步进度
         s.saved = s.saved.map(function (x) {
           return x.id === s.session.savedId
-            ? { id: x.id, date: x.date, idea: s.session.idea, courage: s.session.courage, time: s.session.time, route: s.session.route, done: s.session.done }
+            ? { id: x.id, date: x.date, idea: s.session.idea, courage: s.session.courage, time: s.session.time, route: s.session.route, done: s.session.done, plan: x.plan || s.session.plan }
             : x;
         });
       });

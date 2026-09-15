@@ -41,7 +41,7 @@ window.MI = window.MI || {};
         '</div>' +
         MI.figure('missing', '一条虚线小路消失在空白的纸上') +
         '</div>' +
-        '<button class="btn btn-primary" data-nav="/lab">回到实验室</button>' +
+        '<button class="btn btn-primary" data-nav="/lab">回到自由实验</button>' +
         '</section>';
     }
   };
@@ -201,7 +201,7 @@ window.MI = window.MI || {};
   }
 
   function labelOf(section) {
-    var map = { '/': '入口', '/lab': '实验室', '/route': '路线详情', '/fear': '恐惧模型', '/archive': '档案记忆', '/stress': '压力画像', '/settings': '设置', '/about': '应用介绍' };
+    var map = { '/': '入口', '/lab': '自由实验', '/route': '路线详情', '/fear': '恐惧模型', '/archive': '档案记忆', '/stress': '压力画像', '/settings': '设置', '/about': '应用介绍' };
     return map[section] || '这里';
   }
 
@@ -287,7 +287,7 @@ window.MI = window.MI || {};
       MI.router.go(btn.dataset.nav);
     });
 
-    document.getElementById('help-button').addEventListener('click', openHelp);
+    // 使用说明的入口只剩页脚与 ? 快捷键：页头右上角让给了事务所日志。
     document.getElementById('footer-help').addEventListener('click', openHelp);
     document.getElementById('close-help').addEventListener('click', closeHelp);
     document.getElementById('start-exploring').addEventListener('click', function () {
